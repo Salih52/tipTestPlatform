@@ -1,1 +1,805 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tıp Sınavları - FTR & Beyin Cerrahisi</title>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1e40af;
+            --bg: #f8fafc; --card: #ffffff;
+            --text: #0f172a; --text-light: #64748b;
+            --border: #e2e8f0; --success: #22c55e;
+            --error: #ef4444; --header-height: 60px;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
 
+        /* ===== SINAV SEÇİM EKRANI ===== */
+        #exam-select-screen { min-height: 100vh; padding: 2rem 1rem; max-width: 700px; margin: 0 auto; }
+        .site-title { text-align: center; margin-bottom: 0.3rem; font-size: 1.5rem; color: var(--text); }
+        .site-subtitle { text-align: center; color: var(--text-light); font-size: 0.95rem; margin-bottom: 2rem; }
+        .exam-list { display: flex; flex-direction: column; gap: 0.8rem; }
+        .exam-item {
+            background: var(--card); border: 2px solid var(--border); border-radius: 12px;
+            padding: 1.1rem 1.3rem; cursor: pointer; transition: 0.2s;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .exam-item:hover, .exam-item:active { border-color: var(--primary); background: #eff6ff; }
+        .exam-item .exam-title { font-weight: 600; font-size: 1rem; }
+        .exam-item .exam-desc { color: var(--text-light); font-size: 0.85rem; margin-top: 0.2rem; }
+        .exam-item .arrow { color: var(--primary); font-size: 1.3rem; font-weight: bold; }
+
+        /* ===== MOBİL HEADER ===== */
+        .mobile-header {
+            position: fixed; top: 0; left: 0; width: 100%; height: var(--header-height);
+            background: var(--card); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 1rem; z-index: 100;
+        }
+        .mobile-header h1 { font-size: 1rem; margin: 0; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+        .menu-btn { background: none; border: none; font-size: 1.5rem; color: var(--primary); cursor: pointer; padding: 5px 10px; }
+
+        .main-container { padding: calc(var(--header-height) + 1rem) 1rem 1rem; }
+        .quiz-card { background: var(--card); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 2rem; }
+
+        .question-text { font-size: 1.1rem; font-weight: 600; line-height: 1.5; margin-bottom: 1.5rem; color: #1e293b; }
+        .options-container { display: flex; flex-direction: column; gap: 0.8rem; }
+        .option {
+            padding: 1rem; border: 2px solid var(--border); border-radius: 10px;
+            cursor: pointer; transition: 0.2s; position: relative;
+            font-size: 0.95rem; line-height: 1.4;
+        }
+        .option:active { background: #f1f5f9; }
+        .option.selected { border-color: var(--primary); background: #eff6ff; }
+        .option.correct { border-color: var(--success) !important; background: #f0fdf4 !important; color: #166534; font-weight: 500;}
+        .option.wrong { border-color: var(--error) !important; background: #fef2f2 !important; color: #991b1b; }
+
+        .nav-controls { margin-top: 2rem; display: flex; justify-content: space-between; gap: 10px; }
+        button { padding: 0.7rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; border: none; font-size: 0.95rem; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; flex: 1; text-align: center;}
+        .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+        .btn-primary:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-secondary { background: #e2e8f0; color: #475569; }
+        .btn-finish { background: #dc2626; color: white; width: 100%; margin-top: 10px;}
+        .btn-home { background: #f1f5f9; color: #475569; width: 100%; margin-top: 10px; border: 1px solid var(--border);}
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            position: fixed; top: 0; left: -100%; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); z-index: 200;
+            transition: 0.3s; opacity: 0; visibility: hidden;
+        }
+        .sidebar.open { left: 0; opacity: 1; visibility: visible; }
+        .sidebar-content {
+            width: 85%; max-width: 300px; height: 100%;
+            background: var(--card); padding: 1.2rem;
+            display: flex; flex-direction: column;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+        }
+        .sidebar h3 { font-size: 1.1rem; margin: 0 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--bg); display: flex; justify-content: space-between; align-items: center;}
+        .close-menu-btn { background: none; border: none; font-size: 1.5rem; color: #64748b; cursor: pointer; padding: 5px; }
+        .question-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+            gap: 8px; overflow-y: auto; padding-bottom: 20px;
+            flex: 1; align-content: start;
+        }
+        .q-badge {
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 8px; border: 1px solid var(--border);
+            cursor: pointer; font-size: 0.85rem; transition: 0.2s;
+            font-weight: 500; color: var(--text-light);
+            margin: 0 auto;
+        }
+        .q-badge.active { border-color: var(--primary); background: #eff6ff; font-weight: bold; color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+        .q-badge.answered { background: var(--primary); color: white; border-color: var(--primary); }
+
+        #result-screen { display: none; padding-bottom: 5rem; }
+        .review-item { margin-bottom: 1.5rem; padding: 1rem; border-radius: 10px; border: 1px solid var(--border); background: white; font-size: 0.9rem;}
+
+        @media (min-width: 992px) {
+            body.quiz-mode { display: flex; height: 100vh; }
+            body.quiz-mode .mobile-header { display: none; }
+            body.quiz-mode .sidebar {
+                position: static; width: 300px; left: 0 !important; opacity: 1 !important; visibility: visible !important;
+                background: var(--card); border-right: 1px solid var(--border);
+            }
+            body.quiz-mode .sidebar-content { width: 100%; box-shadow: none; padding: 1.5rem; }
+            body.quiz-mode .main-container { flex: 1; padding: 2rem; overflow-y: auto; display: flex; align-items: center; justify-content: center; }
+            body.quiz-mode .quiz-card { max-width: 800px; width: 100%; padding: 2rem; margin-bottom: 0;}
+            body.quiz-mode #q-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 10px; align-content: start; }
+            body.quiz-mode .q-badge { width: 40px; height: 40px; }
+            body.quiz-mode .close-menu-btn { display: none; }
+            #exam-select-screen { padding-top: 4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== SINAV SEÇİM EKRANI ===== -->
+<div id="exam-select-screen">
+    <h1 class="site-title">FTR & Beyin Cerrahisi</h1>
+    <p class="site-subtitle">Çıkmış Sınav Soruları · Girmek istediğiniz sınavı seçin</p>
+    <div class="exam-list" id="exam-list"></div>
+</div>
+
+<!-- ===== QUIZ EKRANI ===== -->
+<header class="mobile-header" id="quiz-header" style="display:none;">
+    <span id="mobile-progress" style="color: var(--text-light); font-size: 0.9rem;">Soru 1</span>
+    <h1 id="header-title">Quiz</h1>
+    <button class="menu-btn" onclick="toggleSidebar()">&#9776;</button>
+</header>
+
+<div class="sidebar" id="sidebar" style="display:none;" onclick="closeSidebar(event)">
+    <div class="sidebar-content" onclick="event.stopPropagation()">
+        <h3>
+            <span>Sorular</span>
+            <button class="close-menu-btn" onclick="toggleSidebar()">&#10005;</button>
+        </h3>
+        <div class="question-grid" id="q-grid"></div>
+        <div class="sidebar-footer">
+            <button class="btn-finish" onclick="finishQuiz()">Sınavı Bitir</button>
+            <button class="btn-home" onclick="goHome()">&#8592; Ana Sayfa</button>
+        </div>
+    </div>
+</div>
+
+<main class="main-container" id="quiz-area" style="display:none;">
+    <div class="quiz-card">
+        <div class="question-text" id="question">Soru yükleniyor...</div>
+        <div class="options-container" id="options"></div>
+        <div class="nav-controls">
+            <button class="btn-secondary" id="prev-btn" onclick="prevQuestion()">&#8592; Geri</button>
+            <button class="btn-primary" id="next-btn" onclick="nextQuestion()">Sonraki &#8594;</button>
+        </div>
+    </div>
+</main>
+
+<main class="main-container" id="result-screen">
+    <div class="quiz-card" style="max-width: 900px; margin: 0 auto;">
+        <h2 style="text-align: center; margin-top: 0;">Sınav Sonucu</h2>
+        <div id="score-summary" style="text-align: center; font-size: 1.4rem; font-weight: bold; margin-bottom: 2rem; color: var(--primary);"></div>
+        <div id="review-list"></div>
+        <button class="btn-primary" style="width: 100%; margin-top: 2rem; display: block; padding: 1rem;" onclick="restartExam()">Sınavı Yeniden Başlat</button>
+        <button class="btn-home" style="padding: 1rem;" onclick="goHome()">&#8592; Ana Sayfaya Dön</button>
+    </div>
+</main>
+
+<script>
+/* ============================================================
+   YENİ SINAV EKLEME:
+   Aşağıdaki EXAMS dizisine yeni bir blok ekleyin. Şablon:
+
+   {
+       title: "Yeni Sınavın Adı",
+       desc: "32 soru",   // listede görünen açıklama (serbest metin)
+       questions: [
+           { "q": "Soru metni?", "a": ["DOĞRU cevap", "yanlış", "yanlış", "yanlış", "yanlış"] },
+           ...
+       ]
+   },
+
+   ÖNEMLİ: Her sorunun "a" dizisinde İLK eleman DOĞRU cevaptır.
+   Şıklar sınav sırasında otomatik karıştırılır.
+   ============================================================ */
+const EXAMS = [
+    {
+        title: "I. Sınav Grubu (Soru 60 - 91)",
+        desc: "32 soru",
+        questions: [
+        {"q": "C6 radikülopati tespit edilen bir hastada aşağıdaki bulgulardan hangisi beklenmez?", "a": ["Spastisite", "El bilek ekstansiyonunda kuvvet kaybı", "Baş parmak ve işaret parmağı duyu kaybı", "Spurling testinde ağrı artışı", "Brakioradial refleks kaybı"]},
+        {"q": "Kalça osteoartriti ile ilgili aşağıdaki ifadelerden hangisi yanlıştır?", "a": ["Kadınlarda daha sık görülür.", "En sık supero-lateral bölge tutulur.", "Ağrı sıklıkla kasığa yansır.", "Obezite risk faktörlerindendir.", "Kalça fleksiyon ve iç rotasyonu kısıtlanır."]},
+        {"q": "Otuz yaşında, yaygın ağrı ve yorgunluk tarifleyen, depresif bulguları olan, laboratuvar değerlendirmeleri normal olan kadın hastanın yaygın ağrı skalası: 8, semptom şiddet skalası: 5 olarak belirleniyor. Bu hastada aşağıdaki ajanlardan hangisi tedavi için uygundur?", "a": ["Duloksetin", "Fluoksetin", "Paroksetin", "Sertralin", "Essitalopram"]},
+        {"q": "Romatizmal hastalıklara ait klinik bulgular ile bazı spesifik antikorlar arasında ilişki mevcuttur. Bu konu ile ilgili aşağıdakilerden hangisi yanlıştır?", "a": ["Anti-Sm ilaca bağlı lupus sendromunda yüksek duyarlılığa sahiptir", "Anti-U1RNP (titresi >1:1600) miks konnektif doku hastalığı (MKDH) Alarcon-Segovia tanısal kriterleri arasında yer almaktadır", "Anti-ds-DNA pozitifliği, lupus nefrit riskini arttırır.", "Ribozomal P proteini SLE tanısı için yüksek spesifiteye sahiptir", "RNA Polimeraz III sistemik sklerozlu hastalarda renal kriz eğilimini yükseltir"]},
+        {"q": "Aşağıdakilerden hangisi ailevi akdeniz ateşi (FMF) tedavisi için yanlıştır?", "a": ["FMF'li bir hastada amiloidoz geliştikten sonra kolşisin amiloidozu yavaşlatmada etkili değildir.", "Kolşisin atakları önlemede ve subklinik inflamasyonu kontrol etmede etkilidir.", "Kolşisinin dozu peritonit atağında arttırılırsa gastrointestinal yan etkisi nedeni ile abdominal atağın şiddetini arttırabilir.", "Kolşisine dirençli vakalarda IL-1 inhibitörleri kullanılabilir.", "FMF'li hastalarda anti-tümör nekroz faktör (Anti TNF-α) ajanlar özellikle kronik artrit ve sakroileit gibi kas iskelet sistemi tutulumlarında etkili olabilir."]},
+        {"q": "On yıldır primer Sjogren Sendromu tanısı ile takip edilmekte olan 55 yaşındaki kadın hastanın, son 3 aydır halsizlik ve parotis bezinde şişlik yakınması ile birlikte fizik muayenesinde posterior servikal lenf bezlerinde büyüme olduğu izlenmektedir. Laboratuvar bulguları içerisinde lökopeni ve düşük kompleman C4 düzeyleri gözlenmektedir. En olası ön tanınız aşağıdakilerden hangisi olmalıdır?", "a": ["Lenfoma", "HIV enfeksiyonu", "Amiloidoz", "Kronik pankreatit", "Sekonder Sjogren Sendromu"]},
+        {"q": "Romatoid artrit için aşağıdaki laboratuvar bulgularından hangisi daha spesifiktir?", "a": ["Anti-siklik sitrüline peptit (Anti-CCP) antikoru", "Yüksek akut faz reaktanı", "Romatoid faktör", "Kronik hastalık anemisi", "Trombositoz"]},
+        {"q": "Kas kuvveti değerlendirmesinde, test edilen kas ancak yer çekimini ortadan kaldıran bir pozisyona getirildiğinde hareket edebiliyorsa fizik tedavi programında aşağıdaki egzersiz tiplerinden hangisini vermek uygundur?", "a": ["Aktif-asistif", "Pasif", "Aktif", "Progresif-dirençli", "İzotonik"]},
+        {"q": "İki ay önce sağ orta serebral arter infarktı nedeniyle kuvvet kaybı gelişen immobil hemiplejik hastanın yatak içi pozisyonlaması ile ilgili aşağıdaki yaklaşımlardan hangisi uygun değildir?", "a": ["Sol diz, diz altına yastık konularak desteklenmelidir.", "Sol kalçanın dış rotasyonuna engel olmak için bacak dıştan desteklenmelidir.", "Sağ yanına yatarken, sol omuz 90 derece fleksiyonda ve dirsek ekstansiyonda olmalıdır.", "Sol ayak bileği nötral pozisyonda tutulmalıdır.", "Kalça ve diz fleksiyon kontraktürlerini önlemek için hasta aralıklı yüzükoyun yatırılır."]},
+        {"q": "Yüksekten düşme sonucu C8 seviyesinde komplet spinal kord yaralanması gelişen bir hastada aşağıdakilerden hangisi beklenmez?", "a": ["Transferlerde tam bağımlılık", "İnspiryum ve ekspiryum bozukluğu", "Otonomik disrefleksi", "Postural hipotansiyon", "Nörojen mesane"]},
+        {"q": "Aşağıdakilerden hangisi osteoporoz için bir risk faktörü değildir?", "a": ["Obezite", "Sigara kullanımı", "Hipertiroidi", "Romatoid Artrit", "Proton pompa inhibitörleri kullanımı"]},
+        {"q": "Pençe el deformitesi aşağıdaki tuzak nöropatilerden hangisinde görülebilir?", "a": ["Kübital tünel sendromu", "Karpal tünel sendromu", "Pronator teres sendromu", "Anterior interossöz sendrom", "Posterior interossöz sendrom"]},
+        {"q": "45 yaşında kadın hasta 2 gündür devam eden şiddetli omuz ağrısı varmış. Travma öyküsü yok. Ağrısının giderek arttığını kolunu kaldıramadığını belirtiyor. Muayenesinde: omuz hareketleri her yönde ağrılı, kısıtlı. Hastanın omuz grafisinde kalsifikasyonlar izlenmektedir. Bu hastada tanınız nedir?", "a": ["Kalsifik tendinit", "Adeziv kapsülit", "Biseps tendon rüptürü", "Supraspinatus rüptürü", "Akromiyoklaviküler artrit"]},
+        {"q": "Bel ağrıları ile ilgili hangi ifade yanlıştır?", "a": ["En fazla fıtık gelişen seviye L3-4 seviyesidir", "İnflamatuar bel ağrısı istirahatte belirginleşir", "Maligniteye bağlı ağrılarda genelde metastaz sonrası gelişir", "İleri yaşlarda en sık sebep dejeneratif osteoartrittir", "En sık sebep mekanik patolojilerdir."]},
+        {"q": "Nöropatik ağrıda ilk sırada kullanılacak ilaç aşağıdakilerden hangisidir?", "a": ["Amitriptilin", "Diklofenak Na", "Tiyokolsikoid asit", "B1-B6 vit kompleksi", "Kolsisin"]},
+        {"q": "Romatoid artritte antijenin sunumu engelleyerek T hücre ko-inhibisyonu yapan medikal tedavi aşağıdakilerden hangisidir?", "a": ["Abatacept", "Adalimumab", "Etanercept", "Rituksimab", "İnfliksimab"]},
+        {"q": "Aşağıdaki muayene yöntemlerinden hangisi sadece kalça eklem patolojilerinin değerlendirilmesinde kullanılır?", "a": ["FADIR", "Cox bulgusu", "Bregard belirtisi", "Mennel testi", "Laseque testi"]},
+        {"q": "Lomber disk hernilerinde aşağıdakilerden hangisinde mutlak cerrahi gereklidir?", "a": ["İlerleyici nörolojik defisit olması", "Bel hareketlerinin her yöne kısıtlı olması", "L5 dermatomunda hipoestezi", "Düz bacak kaldırma testinde ilk 30 derecede ağrı olması", "Hastanın ağrısının şiddetli olması"]},
+        {"q": "62 yaşında bayan hasta sağ dizde 10 gündür devam eden şişlik ve ağrı şikayeti ile geliyor. F.M sağ dizde efüzyon ve ısı artışı mevcut. Eklem hareketi kısıtlanmış, laboratuvar incelemesinde Akut faz yanıtını yüksek, diğer parametreler normal sınırlarda. Çekilen grafisi görselde kalsifikasyonlar (kondrokalsinozis) gösteren hastanın olası ön tanısı nedir?", "a": ["Pseudogut", "Septik artrit", "Osteoartrit", "Gut", "Sinovyal kondromatozis"]},
+        {"q": "I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "Aşağıdakilerden hangisi gut hastalığı tedavisinde ürik asit yapımını azaltarak etki gösterir?", "a": ["Febuksostat", "Probenesid", "Benzbromaron", "Peglotikaz", "Rilonasept"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "Aşağıdaki anatomik yapıların sayıları hakkında hangisi doğrudur? Foramen monro (FM), Aquaductus sylvi (AS)", "a": ["İki FM, Bir AS", "Bir FM, İki AS", "İki FM, İki AS", "Bir FM, Bir AS", "Üç FM, İki AS"]},
+        {"q": "SSS tümörleri ile ilgili verilen bilgilerden hangisi yanlıştır?", "a": ["SSS tümörlerinin başka organ metastazları sık görülür.", "Cerrahi rezeksiyon sınırlı olabilir.", "Klinik genel semptomlar dışında yerleşim ile ilgilidir.", "Benign-malign ayrımı daha az belirgindir.", "Metastazlar en sık SSS tümörleridir."]},
+        {"q": "Nörojenik ve vasküler kladikasyo ayırıcı tanısında aşağıda verilen bilgilerden hangisi yanlıştır?", "a": ["Vasküler kladikasyoda ağrı postüre bağlıdır. Fleksiyon postürde şikayetler azalır.", "Nörojenik kladikasyonda ağrı daha çok dermatomal olur.", "Ayak eleve edilince vasküler patolojide ayak soluklaşır.", "Nabız değişiklikleri vasküler patolojilerde olur.", "Nörojenik kladikasyoda şikayetler sıklıkla ilerleyicidir."]},
+        {"q": "Kafa travmalı hastalarda, aşağıdakilerden hangisi yüksek riskli intrakranial yaralanma bulgularından değildir?", "a": ["Darbe bölgesinde skalpteki şişlikte artış olması", "Alkole, ilaçlara, metabolik anomalilere, postiktal duruma vb. bağlı olmayan bilinç düzeyinde azalma olması", "Fokal nörolojik defisit", "Penetran kafatası yaralanması ya da çökme kırığı olması", "Bilinç düzeyinin gerilemesi"]},
+        {"q": "Balıklama denize atlama sonrası hastaneye getirilen, C6-7 düzeyinde ileri anterior dislokasyon ve bu seviyenin altında tam medüller kesi bulguları saptanan hastada aşağıdakilerden hangisi görülmez?", "a": ["Göbek seviyesinden itibaren tam duyu kaybı", "Alt ekstremitelerde refleks kaybı", "Korunmuş omuz hareketleri", "Anal sfinkter tonusunun kaybolması", "Üriner sfinkter kontrol kusuru"]},
+        {"q": "L5 radikülopatide aşağıdakilerden hangisinin olmasını beklersiniz?", "a": ["Kalça abdüksiyonunda kuvvet kaybı.", "Diz ekstansiyonunda kuvvet kaybı.", "Plantar fleksiyonda kuvvet kaybı.", "Aşil refleksinde azalma.", "Patella refleksinde azalma."]},
+        {"q": "Lomber disk hernileriyle ilgili hangisi yanlıştır?", "a": ["En sık L4-5 aralığında görülür", "%95'i L4-5 veya L5-S1 düzeyinde görülür", "4. ve 5. dekadda pik yapar", "%5'i asemptomatiktir", "E:K oranı 3:1'dir"]},
+        {"q": "Spinal kord kompresyonu olan, spinal instabilite gelişen ve hızlı nörolojik bozulma izlenen ekstradural tümörlü bir hastada en uzun ambulatuvar zamanı (yürüyebilme, motor becerisini koruyabilme) sağlayacak girişim ne olmalıdır?", "a": ["Dekompresif cerrahi rezeksiyon + spinal enstrümantasyon + radyoterapi", "Dekompresif cerrahi rezeksiyon", "Dekompresif cerrahi rezeksiyon + radyoterapi", "Spinal enstrümantasyon + radyoterapi", "Yalnız radyoterapi"]},
+        {"q": "Aşağıdaki tümörlerden hangisi hem intradural intramedüller hem de intradural ekstramedüller tümörlerdendir?", "a": ["Ependimom", "Menengiom", "Schwannom", "Anevrizmal kemik kisti", "Astrositom"]},
+        {"q": "Sağ temporo-paryetal bölgede oluşan epidural hematom varlığında supratentoryal kompartmanda meydana gelen basınç artışı, tentorial açıklıktan ilk olarak hangi anatomik yapının yer değiştirmesine (herniasyona) neden olur?", "a": ["Unkus", "İnsula", "Serebellar tonsiller", "Amigdala", "Lateral ventrikül"]}
+        ]
+    },
+    {
+        title: "II. Sınav Grubu (Soru 60 - 92)",
+        desc: "33 soru",
+        questions: [
+        {"q": "Aşağıda sıralanan fizik tedavi ve rehabilitasyon uygulamalarından hangileri derin ısıtıcı tedavilerdendir? I. Kısa Dalga Diatermi II. Ultrason III. İnfraruj IV. Mikrodalga Diatermi", "a": ["I, II, IV", "Yalnız II", "Hepsi", "I, II, III", "Yalnız I"]},
+        {"q": "Anterior interosseöz sinir sıkışma sendromunda aşağıdakilerden hangisinin görülmesi beklenmez?", "a": ["İnterosseöz kaslarda atrofi", "Ön kolda ağrı", "Parmak uçları ile sıkıştırma hareketinde güçsüzlük", "Baş parmak interfalangeal eklem fleksiyonunda güçsüzlük", "2. ve 3. parmak fleksiyon kas kuvvetinde azalma"]},
+        {"q": "İki ay önce sağ orta serebral arter infarktı nedeniyle kuvvet kaybı gelişen immobil hemiplejik hastanın yatak içi pozisyonlaması ile ilgili aşağıdaki yaklaşımlardan hangisi uygun değildir?", "a": ["Sol diz, diz altına yastık konularak desteklenmelidir.", "Sol kalçanın dış rotasyonuna engel olmak için bacak dıştan desteklenmelidir.", "Sağ yanına yatarken, sol omuz 90 derece fleksiyonda ve dirsek ekstansiyonda olmalıdır.", "Sol ayak bileği nötral pozisyonda tutulmalıdır.", "Kalça ve diz fleksiyon kontraktürlerini önlemek için hasta aralıklı yüzükoyun yatırılır."]},
+        {"q": "Spinal kord yaralanmalı hastada iyi fonksiyonel sonucun en önemli göstergesi aşağıdakilerden hangisidir?", "a": ["Sakral duyunun korunmuş olması", "Bası yarasının olmaması", "Mesane kapasitesinin iyi olması", "Otonom fonksiyon bozukluklarının olmaması", "Kontraktürlerin gelişmemesi"]},
+        {"q": "65 yaşında sırt ağrısıyla başvuran kadının direkt grafisinde torakal vertebralarda yükseklik kaybı izleniyor. Dual enerji x-ray absorbsiyometri kullanılarak kemik mineral yoğunluğu ölçülüyor. L1-L4 T skoru -3.0 olarak belirleniyor. Bu hastaya yaklaşım ile ilgili aşağıdakilerden hangisi yanlıştır?", "a": ["Hasta osteopenik olduğundan düşme önleyici yaklaşımlar önemlidir.", "Laboratuvar tetkikleri ile bifosfanat tedavisi başlanabilir.", "Bir yıl sonra kemik mineral yoğunluğu tekrar değerlendirilmelidir.", "Serum 25(OH)D düzeyi <=20 ng/ml olanlarda D vitamini yüklemesi gerekir.", "Önerilen günlük elemental kalsiyum alımı 1200 mg'dır."]},
+        {"q": "55 yaşında obez, kadın hasta, sağ uyluk ve bacakta ağrı tarifliyor. Oturulduğu yerden kalkarken, uzun mesafe yürüdüğünde ve merdiven inip çıkmakla ağrısı şiddetleniyormuş. Muayenesinde; sağda antaljik yürüyüşü var, sağ kalça eklem hareketlerinde fleksiyon ve iç rotasyonda kasıkta ciddi ağrı hissediyor ve hafif kısıtlılık var. Laboratuvar tetkiklerinde Sedimentasyon 27mm/sa, CRP 1 mg/L, WBC 7000/μL. Aşağıdakilerden hangisi bu hastanın tedavisinde uygun olmayacaktır?", "a": ["Bir ay süreli mutlak yatak istirahati", "2gr/gün Parasetamol", "Diklofenak sodyum", "Kilo verme önerisi", "Kalça kuşağı kuvvetlendirme"]},
+        {"q": "55 yaşında kadın hasta, son 1 aydır sol kalça ve uylukta ağrı şikayeti var. Ağrısı yürümekle og sol tarafı üzerine yatmakla artıyormuş. Uyuşma karıncalanma, yanma-üşüme eşlik etmiyor. Muayenesinde sol kalça eklem hareket açıklığı tam, dirençli abdüksiyonda ağrısı var, uyluk yan taraf kasları ve büyük trokanter üzeri palpasyonla hassas. Bu hastada en olası tanınız nedir?", "a": ["Trokanterik bursit", "Meraljia parestetika", "Koksartroz", "Lomber disk hernisi", "Kompleks bölgesel ağrı sendromu"]},
+        {"q": "48 yaşında erkek hasta, 2 gün önce ağaç dalına hızla asıldıktan sonra omuz ağrısı başlamış. Kolunu yukarı kaldıramıyor ve arkaya alamıyormuş. Geceleri ağrısı daha da şiddetleniyor, omuzunun üzerine yatamıyormuş. Fizik muayenesinde omuz abdüksiyonu 60 derece sonrası ağrılı, dış rotasyonda ciddi ağrı hissediyor ve kısıtlılık var. Bu hastada en olası tanınız nedir?", "a": ["Subakromiyal sıkışma sendromu", "Bisipital tendinit", "Adeziv kapsülit", "Biseps tendon rüptürü", "Akromiyoklaviküler artrit"]},
+        {"q": "62 yaşında kadın hasta, boyun ve kollarda ağrı şikayetiyle başvurdu. Ağrılarının 1 yıldır devam ettiğini kollarının ve ellerinin güçsüzleştiğini, boynunda tutukluk hissettiğini belirtiyor. Son 1 aydır yürümekte de zorlanıyormuş. Muayenesinde baş-boyun hareketleri ağrılı ve hafif kısıtlı, el kasları atrofik, derin tendon refleksleri artmış bulundu. Bu hastada en olası tanınız nedir?", "a": ["Servikal myelopati", "Servikal strain", "Multiple skleroz", "Servikal sprain", "Torasik outlet sendromu"]},
+        {"q": "On yıldır primer Sjogren Sendromu tanısı ile takip edilmekte olan 55 yaşındaki kadın hastanın, son 3 aydır halsizlik ve parotis bezinde şişlik yakınması ile birlikte fizik muayenesinde posterior servikal lenf bezlerinde büyüme olduğu izlenmektedir. Laboratuvar bulguları içerisinde lökopeni ve düşük kompleman C4 düzeyleri gözlenmektedir. En olası ön tanınız aşağıdakilerden hangisi olmalıdır?", "a": ["Lenfoma", "HIV enfeksiyonu", "Amiloidoz", "Kronik pankreatit", "Sekonder Sjogren Sendromu"]},
+        {"q": "Romatizmal hastalıklara ait klinik bulgular ile bazı spesifik antikorlar arasında ilişki mevcuttur. Bu konu ile ilgili aşağıdaki hangisi yanlıştır?", "a": ["Anti-Sm ilaca bağlı lupus sendromunda yüksek duyarlılığa sahiptir", "Anti-U1RNP (titresi >1:1600) miks konnektif doku hastalığı (MKDH) Alarcon-Segovia tanısal kriterleri arasında yer almaktadır", "Anti-ds-DNA pozitifliği, lupus nefrit riskini arttırır.", "Ribozomal P proteini SLE tanısı için yüksek spesifiteye sahiptir", "RNA Polimeraz III sistemik sklerozlu hastalarda renal kriz eğilimini yükseltir"]},
+        {"q": "Aşağıdakilerden hangisi anti-fosfolipit antikor sendromunda en sık görülen cilt bulgusudur?", "a": ["Livedo retikülaris", "Bacak ülserleri", "Kutanöz nekrozlar", "Eritema nodozum", "Dijital ülser"]},
+        {"q": "Yirmi dört yaşında kadın hasta tekrarlayan ağrılı oral ülser ve üç gün önce başlangıç gösteren sol gözde ağrı ve kızarıklık şikayeti ile romatoloji polikliniğine başvuruyor. Hastanın klinik sorgulamasında genital ülser, artrit, fotosensivite bildirmemektedir. Göz muayenesinde anterior üveit saptandı. Fizik muayenesinde bilateral tibia ön yüzünde deriden hafif kabarık, üzeri basmakla ağrılı, kırmızı-mor renkli cilt altı nodülü olan hastada en olası tanınız hangisidir?", "a": ["Behçet sendromu", "Sistemik lupus eritematozus", "Sjogren sendromu", "Diskoid lupus eritematozus", "Antifosfolipit sendromu"]},
+        {"q": "Femoral germe testi hangi sinir kökleriyle ilgili patolojilerde pozitif olabilir?", "a": ["L2, L3, L4", "S2-4", "S1, S2, S3", "L4, L5, S1", "L4, L5, S1 (tekrar)"]},
+        {"q": "Aşağıdakilerden hangisi romatoid artritte ilerleyici hastalığın aday belirteçlerinden değildir?", "a": ["İleri yaş", "Kadın cinsiyet", "Sigara kullanımı", "El eklem tutulumu", "Yüksek sayıda şiş ve hassas eklem sayısı"]},
+        {"q": "Lomber diskopatili bir hastanın tedavisinde aşağıdakilerden hangisi uygun değildir?", "a": ["Akut dönemde fleksiyon egzersizleri yapılmalıdır.", "Antienflamatuar ve Analjezik ilaçlar sıklıkla tercih edilir.", "Kortikosteroid ilaçlar bel fıtığı büyük olanlarda tercih edilir.", "İstirahat ortalama 7-10 gün arası değişir.", "Sedatifler gerekli hastalarda kullanılır."]},
+        {"q": "Romatoid artritte en sık görülen ekstraartikuler hangisidir?", "a": ["Subkutan nodül", "Karpal tünel sendromu", "Atrofi", "Episklerit", "Perikardit"]},
+        {"q": "Aşağıdaki ifadelerden hangisi doğru değildir?", "a": ["İleri yaşlarda bel ağrısının en sık sebebi malignitelerdir.", "S1 diskopatisinde Aşil refleksi azalmış veya kaybolmuştur.", "Lomber diskopati %3-5 oranında cerrahi müdahale gerekir.", "Bel ağrılarının büyük kısmını mekanik sebepler oluşturur.", "Traksiyon uygulaması her bel ağrılı olguda kullanılmaz."]},
+        {"q": "Spondiloartropatiler için aşağıdakilerden hangisi doğrudur?", "a": ["Reaktif artritte görülen sindesmofitler kalın ve non-marjinaldir.", "Psöriyatik artrit görülme sıklığı kadınlarda erkeklere göre 3 kat daha sıktır.", "Enteropatik artritli hastaların %80'inde HLA-B27 pozitiftir.", "Konjuktivit; ankilozan spondilitte reaktif artrite göre daha sık izlenir.", "Daktilit; reaktif artritte enteropatik artrite göre daha nadir izlenir."]},
+        {"q": "Kronik tofüslü gut için aşağıdakilerden hangisi yanlıştır?", "a": ["Miyokard, göz gibi visseral yapılarda tofüs oluşumu beklenmez.", "Olekranon bursalar, aşil tendonu ve kulak heliksi tofüslerin sık yerleştiği yerlerdendir.", "Tofüs oluşum hızı renal hastalık şiddeti ile ilişkilidir.", "Tofüslerin üzerindeki derinin ülserasyonu halinde dışarı tebeşirimsi bir madde atılabilir.", "Tofüs oluşumu ilk gut artritinden ortalama 10 yıl sonra başlar."]},
+        {"q": "I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "Aşağıde verilen bilgilerden hangileri nöral tüp defekti açısında bilinen risk faktörleri arasında değildir?", "a": ["Folat agonistleri", "Folik asit eksikliği", "İlk trimesterde yüksek ısı ve sıcaklık maruziyeti", "Valproik asit", "Obezite"]},
+        {"q": "Nöral tüp defekti düşünülen ya da bu patoloji ile doğan yenidoğanda aşağıde verilen patolojilerin hangisinin birlikte görülme ihtimali en azdır?", "a": ["Maksilofasial patolojiler (Yarık damak vb.)", "Siringomyeli", "Hidrosefali", "Diastometomyeli", "Lipom"]},
+        {"q": "Aşağıdakilerden hangisi aksi ispat edilene kadar spinal kord yaralanması olduğu varsayılarak tedavi edilmesine gerek yoktur?", "a": ["Hafif travmalı, sol ön kol extansör yüzde laserasyonu olan, GKP:15, motor og duyu muayenesi normal, ağrı ve/veya hassasiyet şikayeti olmayan hastalar", "Yüksek enerjili, önemli bir travmaya maruz kalan hastalar", "Bilinç kaybı olan travma hastaları", "Bel ve/veya boyunda ağrısı veya hassasiyeti olan hafif travmalı hastalar", "Hafif travmalı, GKP:15, bir eksremitede hissizlik, karıncalanma, güçsüzlük şikayeti olan hastalar"]},
+        {"q": "Araç dışı trafik kazası öyküsü ile getirilen, IR+/+, sol>sağ anisokorik, gözler kapalı ve ağrılı uyaranla açmayan, emirleri yerine getirmeyen ancak ağrıyı solda lokalize eden fakat alt extremitede motor yanıtı olmayan, konuşmayan ancak ağrılı uyaranla anlamsız sesler çıkartan, spontan solunumu bulunan 42 yaş erkek yaralının Glasgow Koma Skoru kaçtır?", "a": ["GKS = E1M5V2 = 8", "GKS = E1M2V2 = 5", "GKS = E1M5V1 = 7", "GKS = E2M4V2 = 8", "GKS = E1M4V2 = 7"]},
+        {"q": "Aşağıdakilerden hangisinin omurga stabilizasyonunda rolu en azdır?", "a": ["Lig. Flavum", "Faset eklemler", "İntervertebral disk", "ALL", "PLL"]},
+        {"q": "Diz ekstansiyonunda yerçekimini yenebilen bir hastanın kas kuvveti kaçtır?", "a": ["3", "1", "2", "4", "5"]},
+        {"q": "Sabahları daha kötü olmak üzere baş ağrısı, bulantı-kusması olan hastada ilerleyici papil ödemi mevcuttur. Tanıda aşağıdakilerden hangisini düşünürsünüz?", "a": ["Kafaiçi yer kaplayıcı lezyon", "Subaraknoid kanama", "Migren", "Subdural hematom", "Myastenia gravis"]},
+        {"q": "Aşağıdaki anatomik yapıların hangisinde koroid plexus bulunmaz?", "a": ["Lateral ventriküllerin anterior hornu", "3. ventrikül", "Lateral ventriküllerin posterior hornu", "Foramen monro", "4. ventrikül"]},
+        {"q": "Spinal kord kompresyonu olan, spinal instabilite gelişen ve hızlı nörolojik bozulma izlenen ekstradural tümörlü bir hastada en uzun ambulatuvar zamanı (yürüyebilme, motor becerisini koruyabilme) sağlayacak girişim ne olmalıdır?", "a": ["Dekompresif cerrahi rezeksiyon + spinal enstrümantasyon + radyoterapi", "Dekompresif cerrahi rezeksiyon", "Dekompresif cerrahi rezeksiyon + radyoterapi", "Spinal enstrümantasyon + radyoterapi", "Yalnız radyoterapi"]},
+        {"q": "Aşağıdakilerden hangisi subaraknoid kanama sonrası mortalitenin en önemli nedenidir?", "a": ["Tekrarlayan kanama", "Hidrosefali", "Ateş", "Nöbet", "Hipertansiyon"]},
+        {"q": "Çocukluk çağı bipolar affektif bozukluk ve çok erken-erken başlangıçlı şizofreni ayırıcı tanısında; I. Duygulanımda kabarma II. Huzursuzluk III. Grandiyozite IV. Fazla konuşma V. Uyku gereksiniminde azalma Dikkat Eksikliği ve Hiperaktivite Bozukluğu (DEHB) ile Bipolar Bozukluk manik atak ayırıcı tanısı ortak belirti kümesi nedeniyle karışabilmektedir. Hastada görülen yukarıdaki belirtilerden hangisi/hangileri daha çok Bipolar Bozukluk manik atağa özgü belirtilerdir?", "a": ["Yalnız I, III, V", "Yalnız I, II, III, IV, V", "Yalnız I, II, III", "Yalnız I, III, IV, V", "Hepsi"]}
+        ]
+    },
+    {
+        title: "III. Sınav Grubu (Soru 60 - 91)",
+        desc: "32 soru",
+        questions: [
+        {"q": "Romatoid artrit tedavisi ile ilgili hangisi yanlıştır?", "a": ["Steroidleri mümkünse en yüksek dozlarda kullanmak", "Temel hedef erozyon gelişimine mani olmak", "Metotreksata erken dönemde ve yüksek dozlarda başlamak", "Çoklu ilaçlara rağmen yetersiz hastalarda Anti-TNF tedavisi", "İlaç yan etkiler için düzenli takip"]},
+        {"q": "Lomber disk hernilerinde aşağıdakilerden hangisinde mutlah cerrahi gereklidir?", "a": ["İlerleyici nörolojik defisit olması", "Bel hareketlerinin her yöne kısıtlı olması", "L5 dermatomunda hipoestezi", "Hastanın ağrısının şiddetli olması", "Düz bacak kaldırma testinde ilk 30 derecede ağrı olması"]},
+        {"q": "Aşağıdakilerden hangisinde hastalık og klinik test doğru eşleştirilmemiştir?", "a": ["Biceps tendiniti - Jobe bulgusu", "Supraspinatus tendiniti - Ağrılı ark belirtisi", "Subakromian sıkışma sendromu - Neer testi", "De Quervain hastalığı - Finkelstein testi", "Servikal diskopati - Distraksiyon testi"]},
+        {"q": "Genç erkek bir kişide bel ağrısının en sık nedeni nedir?", "a": ["Yumuşak doku strain", "Ankilozan spondilit", "Spondilolizis", "Spondilolistezis", "Disk herniasyonu"]},
+        {"q": "Aşağıdakilerden hangisi Romatoid artritli hastada el - el bilek muayenesinde görülmez?", "a": ["Sosis parmak", "Z deformitesi", "Düğme iliği deformitesi", "Fusiform şişlik", "Piyano tuşu belirtisi"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "Aşağıdakilerden hangisi gut hastalığı tedavisinde ürik asit yapımını azaltarak etki gösterir?", "a": ["Febuksostat", "Probenesid", "Benzbromaron", "Peglotikaz", "Rilonasept"]},
+        {"q": "Aşağıdaki patolojilerden hangileri USG'de izlenebilir? I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "Kronik tofüslü gut için aşağıdakilerden hangisi yanlıştır?", "a": ["Miyokard, göz gibi visseral yapılarda tofüs oluşumu beklenmez.", "Olekranon bursalar, aşil tendonu ve kulak heliksi tofüslerin sık yerleştiği yerlerdendir.", "Tofüs oluşum hızı renal hastalık şiddeti ile ilişkilidir.", "Tofüslerin üzerindeki derinin ülserasyonu halinde dışarı tebeşirimsi bir madde atılabilir.", "Tofüs oluşumu ilk gut artritinden ortalama 10 yıl sonra başlar."]},
+        {"q": "Dört yıl önce sağ MCA infarktı nedeniyle kuvvet kaybı gelişen immobil hastada aşağıdaki klinik durumlardan hangisi beklenmez?", "a": ["Parapleji", "Dirsek fleksörlerinde spastisite", "Ayak bileğinde kontraktür", "Omuz subluksayonu", "Osteoporoz"]},
+        {"q": "Osteoporoz hastalarında aşağıdaki bölgelerden hangisi kırık açısından en az risklidir?", "a": ["Distal tibia", "Distal radius", "Femur başı", "Torakal vertebra", "Lomber vertebra"]},
+        {"q": "28 yaşında erkek hasta, 3 gün önce ağır kaldırma sonrası başlayan boyun ağrısı şikayeti ile başvuruyor. Aşağıdaki ön tanılardan hangisi en az olasıdır?", "a": ["Servikal spondiloz", "Servikal strain", "Servikal sprain", "Servikal disk hernisi", "Miyofasyal ağrı"]},
+        {"q": "Subakromiyal sıkışma sendromunda en sık etkilenen kas hangisidir?", "a": ["Supraspinatus", "Infraspinatus", "Teres Minör", "Teres majör", "Subskapularis"]},
+        {"q": "55 yaşında obez, kadın hasta, sağ uyluk ve bacakta ağrı tarifliyor. Oturulduğu yerden kalkarken, uzun mesafe yürüdüğünde ve merdiven inip çıkmakla ağrısı şiddetleniyormuş. Muayenesinde; sağda antaljik yürüyüşü var, sağ kalça eklem hareketlerinde fleksiyon ve iç rotasyonda kasıkta ciddi ağrı hissediyor ve hafif kısıtlılık var. Laboratuvar tetkiklerinde Sedimentasyon 27mm/sa, CRP 1 mg/L, WBC 7000/μL. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Koksartroz", "Reaktif artrit", "Romatoid artrit", "Septik artrit", "Trokanterik bursit"]},
+        {"q": "45 yaşında erkek hasta, egzersiz amaçlı 30 dakikalık koşu sonrası sağ ayak ve baldır arkasında ağrı şikayeti başlamış. Ağrısı 2 gündür devam ediyor ve gittikçe kötüleşiyormuş. Basmakla şiddetleniyormuş ve topuk arka kısmında ağrıyla birlikte şişlik başlamış. Fizik muayenesinde sağ topuk posteriorunda şişlik, hafif kızarıklık, ısı artışı ve baldır kaslarında palpasyonda hassasiyet var. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Aşil tendiniti", "Morton nöroma", "Ankilozan spondilit", "Pes planus", "Plantar fasiit"]},
+        {"q": "Aşağıdakilerden hangisi ailevi akdeniz ateşi (FMF) tedavisi için yanlıştır?", "a": ["FMF'li bir hastada amiloidoz geliştikten sonra kolşisin amiloidozu yavaşlatmada etkili değildir.", "Kolşisinin atakları önlemede ve subklinik inflamasyonu kontrol etmede etkilidir.", "Kolşisinin dozu peritonit atağında arttırılırsa gastrointestinal yan etkisi nedeni ile abdominal atağın şiddetini arttırabilir.", "Kolşisine dirençli vakalarda IL-1 inhibitörleri kullanılabilir.", "FMF'li hastalarda anti-tümör nekroz faktör (Anti TNF-α) ajanlar özellikle kronik artrit ve sakroileit gibi kas iskelet sistemi tutulumlarında etkili olabilir."]},
+        {"q": "Romatoid artrit için aşağıdaki laboratuvar bulgularından hangisi daha spesifiktir?", "a": ["Anti-siklik sitrüline peptit (Anti-CCP) antikoru", "Yüksek akut faz reaktanı", "Romatoid faktör", "Kronik hastalık anemisi", "Trombositoz"]},
+        {"q": "Aşağıdakilerden hangisi Sjogren Sendromu hastalarında artmış lenfoma riski ile ilişkili değildir?", "a": ["Renal tubuler asidoz", "Lenfoadenopati", "Kriyoglobulinemi", "C4 hipokomplemanetemisi", "Palpable purpura"]},
+        {"q": "On yıldır primer Sjogren Sendromu tanısı ile takip edilmekte olan 55 yaşındaki kadın hastanın, son 3 aydır halsizlik ve parotis bezinde şişlik yakınması ile birlikte fizik muayenesinde posterior servikal lenf bezlerinde büyüme olduğu izlenmektedir. Laboratuvar bulguları içerisinde lökopeni ve düşük kompleman C4 düzeyleri gözlenmektedir. En olası ön tanınız aşağıdakilerden hangisi olmalıdır?", "a": ["Lenfoma", "HIV enfeksiyonu", "Amiloidoz", "Kronik pankreatit", "Sekonder Sjogren Sendromu"]},
+        {"q": "El parmaklarında ekstansiyon kaybı aşağıdaki periferik sinirlerden hangisinin tuzaklanması sonucu ortaya çıkabilir?", "a": ["Radial sinir", "Median sinir", "Muskulokütanöz sinir", "Anterior interosseöz sinir", "Ulnar sinir"]},
+        {"q": "Manuel kas kuvveti değerlendirmesinde, test edilen kas yer çekime karşı hareketini tamamlayıp uygulanan karşı kuvvete hiç direnç gösteremiyorsa kas gücü değeri aşağıdakilerden hangisidir?", "a": ["3", "4", "2", "1", "5"]},
+        {"q": "Araç içi trafik kazası nedeniyle üç ay önce C7 seviyesinde spinal kord hasarı gelişen hastanın sakral duyusunun korunmuş olduğu görülüyor. Bu hastanın klinik ve fonksiyonel durumu için aşağıdakilerden hangisi doğrudur?", "a": ["Transferlerde bağımsızdır.", "Akülü tekerlekli sandalye kullanmalıdır.", "Hastada komplet spinal kord yaralanması olmuştur.", "Otonom disrefleksi gelişmesi beklenmez.", "C7 seviyesi üstünde nöropatik ağrı olabilir."]},
+        {"q": "Aşağıdaki tümörlerden hangisi hem intradural intramedüller hem de intradural ekstramedüller tümörlerdendir?", "a": ["Ependimom", "Menengiom", "Schwannom", "Anevrizmal kemik kisti", "Astrositom"]},
+        {"q": "Aşağıdakilerden hangisi subaraknoid kanama sonrası mortalitenin en önemli nedenidir?", "a": ["Tekrarlayan kanama", "Hidrosefali", "Ateş", "Nöbet", "Hipertansiyon"]},
+        {"q": "Aşağıdakilerden hangisinin omurga stabilizasyonunda rolu en azdır?", "a": ["Lig. Flavum", "Faset eklemler", "İntervertebral disk", "ALL", "PLL"]},
+        {"q": "Diz ekstansiyonunda yerçekimini yenebilen bir hastanın kas kuvveti kaçtır?", "a": ["3", "1", "2", "4", "5"]},
+        {"q": "Kafa travmalı hastalarda, aşağıdakilerden hangisi yüksek riskli intrakranial yaralanma bulgularından değildir?", "a": ["Darbe bölgesinde scalpteki şişlikte artış olması", "Alkole, ilaçlara, metabolik anomalilere, postiktal duruma vb. bağlı olmayan bilinç düzeyinde azalma olması", "Fokal nörolojik defisit", "Penetran kafatası yaralanması ya da çökme kırığı olması", "Bilinç düzeyinin gerilemesi"]},
+        {"q": "Balıklama denize atlama sonrası hastaneye getirilen, C6-7 düzeyinde ileri anterior dislokasyon ve bu seviyenin altında tam medüller kesi bulguları saptanan hastada aşağıdakilerden hangisi görülmez?", "a": ["Göbek seviyesinden itibaren tam duyu kaybı", "Alt ekstremitelerde refleks kaybı", "Korunmuş omuz hareketleri", "Anal sfinkter tonusunun kaybolması", "Üriner sfinkter kontrol kusuru"]},
+        {"q": "Nörojenik ve vasküler kladikasyo ayırıcı tanısında aşağıda verilen bilgilerden hangisi yanlıştır?", "a": ["Vasküler kladikasyoda ağrı postüre bağlıdır. Fleksiyon postürde şikayetler azalır.", "Nörojenik kladikasyonda ağrı daha çok dermatomal olur.", "Ayak eleve edilince vasküler patolojide ayak soluklaşır.", "Nabız değişiklikleri vasküler patolojilerde olur.", "Nörojenik kladikasyoda şikayetler sıklıkla ilerleyicidir."]},
+        {"q": "Nöral tüp defekti düşünülen ya da bu patoloji ile doğan yenidoğanda aşağıda verilen patolojilerin hangisinin birlikte görülme ihtimali en azdır?", "a": ["Maksilofasial patolojiler (Yarık damak vb.)", "Siringomyeli", "Hidrosefali", "Diastometomyeli", "Lipom"]},
+        {"q": "Kafaiçi basınç artmasının klasik üçlüsü aşağıdakilerin hangisinde verilmiştir?", "a": ["Baş ağrısı, bulantı kusma, görme bozuklukları", "Baş ağrısı, papil ödemi, çift görme", "Baş ağrısı, hemiparezi, papil ödemi", "Papil ödemi, şuur bulanıklığı, hemiparezi", "Şuur bulanıklığı, 3. sinir felci, hemiparezi"]},
+        {"q": "Aşağıdaki durumlardan hangisinde lumboperitoneal shunt takılması kontrendikedir?", "a": ["Non-komünike hidrosefali", "Komünike hidrosefali", "İntrakranial hipertansiyon", "Pseudo tumor serebri", "Normal Basınçlı Hidrosefali"]}
+        ]
+    },
+    {
+        title: "IV. Sınav Grubu (Soru 60 - 91)",
+        desc: "32 soru",
+        questions: [
+        {"q": "Romatizmal hastalıklara ait klinik bulgular ile bazı spesifik antikorlar arasında ilişki mevcuttur. Bu konu ile ilgili aşağıdakilerden hangisi yanlıştır?", "a": ["Anti-Sm ilaca bağlı lupus sendromunda yüksek duyarlılığa sahiptir", "Anti-U1RNP (titresi >1:1600) miks konnektif doku hastalığı (MKDH) Alarcon-Segovia tanısal kriterleri arasında yer almaktadır", "Anti-ds-DNA pozitifliği, lupus nefrit riskini arttırır.", "Ribozomal P proteini SLE tanısı için yüksek spesifiteye sahiptir", "RNA Polimeraz III sistemik sklerozlu hastalarda renal kriz eğilimini yükseltir"]},
+        {"q": "17 yaşında erkek hasta göğüs sağ yanında son 2 gündür devam eden batıcı tarzda ağrı yakınması ile başvuruyor. Altı ay önce 3 gün kadar süren benzer ağrı ve ateş yakınması olmuş. Yeni bakılan tetkiklerinde akut faz yanıtı yüksek. Bu hasta için aşağıdaki tanılardan hangisi ilk olarak araştırılmalıdır?", "a": ["Ailesel akdeniz ateşi", "Romatoid artrit", "Behçet hastalığı", "Reaktif artrit", "Sarkoidoz"]},
+        {"q": "Aşağıdakilerden hangisi Sjogren Sendromu hastalarında artmış lenfoma riski ile ilişkili değildir?", "a": ["Renal tubuler asidoz", "Lenfoadenopati", "Kriyoglobulinemi", "C4 hipokomplemanetemisi", "Palpable purpura"]},
+        {"q": "Aşağıdaki durumlardan hangisi osteoporoz gelişimi açısından risk taşımaz?", "a": ["Obezite", "İnme", "Romatoid artrit", "Hipertiroidi", "Tip 2 diyabet"]},
+        {"q": "Aşağıdaki periferik sinirlerden hangisinin tuzaklanması yalnız motor güçsüzlüğe neden olabilir?", "a": ["Posterior interosseöz sinir", "Femoral sinir", "Tibial sinir", "Peroneal sinir", "Siyatik sinir"]},
+        {"q": "Aşağıdakilerden hangileri fizik tedavi ve rehabilitasyonda kullanılan derin ısıtıcı tedavilerdendir? I. Parafin II. Ultrason III. İnfraruj IV. Mikrodalga Diatermi", "a": ["II, IV", "I, IV", "I, III", "II, III", "I, II"]},
+        {"q": "İnmeli hastaların akut ve kronik dönemlerinde uygulanan rehabilitasyon prensipleri ile ilgili aşağıdaki hangisi yanlıştır?", "a": ["Akut dönemde uygulanan daimi üriner katater, inkontinansı olan hastalarda kronik dönemde de kullanılmaya devam edilir.", "Akut dönemde erken mobilizasyon hedeflenir.", "Derin solunum ve öksürme egzersizleri verilebilir.", "Yürüyüş bozuklukları için ayak-ayak bileği ortezi kullanılabilir.", "Kronik dönemde; eklem hareket açıklığı, güçlendirme, denge-koordinasyon egzersizleri ve aerobik egzersizler önerilir."]},
+        {"q": "Tetraplejik bir hastanın yatakta uygun pozisyonlanmadığı ve uzun süre sırt üstü pozisyonda yatırıldığı görülüyor. Bu hastada en olası bası yarası gelişim lokalizasyonu neresidir?", "a": ["Sakrum", "Topuk", "Oksiput", "Büyük trokanter", "Skapula"]},
+        {"q": "Hemoptizi, dispne ile başvuran 63 yaşında kadın hasta, tedaviye rağmen son üç aydır giderek kötüleşen sinüzit olduğunu bildirmektedir. Laboratuvar tetkiklerinde spot idrarda proteinüri (>0.5mg/dl) ve kan biyokimyasında yüksek kreatinin 1.6 mg/dL dikkat çekmektedir. Bu bulgulara ek olarak, yüksek anti-proteinaz-3 antikor düzeyleri saptanan hastada öncelikle hangi tanı düşünülmelidir?", "a": ["Granülomatozis polianjiitis (Wegener Granülomatozis)", "Poliarteritis nodoza (PAN)", "Anti-glomerüler bazal membran (Goodpasture sendromu) hastalığı", "Henoch-Schönlein purpurası (IgA vaskülit)", "Sistemik lupus eritematozis (SLE)"]},
+        {"q": "Aşağıdaki eklemlerden hangisi romatoid artritte en sık tutulur?", "a": ["Metakarpafalangeal eklem", "Diz eklemi", "Dirsek eklemi", "Kalça eklemi", "Temporomandibular eklem"]},
+        {"q": "Aşağıdaki testlerden hangisi rotator kılıf (supraspinatus tendon) patolojilerinde kullanılır?", "a": ["Jobe testi", "Phalen testi", "Apley testi", "Yergason testi", "Mennel testi"]},
+        {"q": "Bel ağrısı nedenleri açısından aşağıdakilerden hangisi doğrudur?", "a": ["Disk hernisasyonu tüm bel ağrılarında %4'lük kısmı oluşturur.", "Konjenital anomaliler bel ağrısının en sık nedenlerindendir.", "Non-mekanik bel ağrılarının en sık nedeni Ankilozan spondilittir.", "Spinal stenoz genç popülasyonda sık görülür.", "Bel ağrısının en sık nedeni statik iş aktiviteleridir."]},
+        {"q": "Nöropatik ağrıda ilk sırada kullanılacak ilaç aşağıdakilerden hangisidir?", "a": ["Amitriptilin", "Diklofenak Na", "Tiyokolsikoid asit", "B1-B6 vit kompleksi", "Kolsisin"]},
+        {"q": "Hangisi L4-5 diskopatinin (L5 kök basısı) bulgusu değildir?", "a": ["Patellar reflekste azalma", "Ayak başparmakta dorsofleksiyonda kuvvet kaybı", "Pozitif Laseque testi", "Kruriste atrofi", "Kullanmakla artan bel bacak ağrısı"]},
+        {"q": "58 yaşında kadın hasta, yaklaşık 1 yıldır kollarda güçsüzlük, ellerini kullanmada zorluk şikayeti var. Eline aldığı nesneleri düşürdüğünü ifade ediyor. Son 4-5 aydır yürürken de dengesizlik yaşadığını, etraftan destek alma ihtiyacı hissettiğini belirtiyor. Bu hastada en olası tanınız nedir?", "a": ["Servikal myelomalazi", "Servikal radikülopati", "Lomber radikülopati", "Karpal tünel sendromu", "Servikal-lomber spondiloz"]},
+        {"q": "Servikal strain-sprain durumlarında servikal grafide görülebilecek bulgu hangisidir?", "a": ["Servikal lordozda azalma", "Disk mesafesinde daralma", "Osteofit", "Disk kompresyonu", "Servikal lordoz artışı"]},
+        {"q": "58 yaşında erkek hasta sol omuz ağrısıyla kliniğimize başvurdu. Hastanın 3 aydır devam eden omuz ağrısı var, 1 aydır kolunu kaldıramıyormuş. Bilinen travma öyküsü yok. Özgeçmiş: Tip-2 Diyabet, insülin kullanıyor, Hipertansiyon-2'li ilaç kullanıyor. Muayenesinde: Sol omuz hareketleri ağrılı, abdüksiyon ve dış rotasyon aktif ve pasif kısıtlı. Eklemde ısı artışı yok. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Adeziv kapsülit", "Kalsifik tendinit", "Subakromiyal sıkışma sendromu", "Bisipital tendinit", "Supraspinatus tendiniti"]},
+        {"q": "55 yaşında obez kadın hasta, son 15 gündür yürümekle sağ ayak tabanında ağrı hissediyor. Herhangi bir travma öyküsü yok. Muayenesinde sağ ayak tabanında, özellikle topuk çevresinde hafif şişlik og palpasyonla ağrısı var. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Plantar fasiit", "Halluks valgus", "Aşil tendiniti", "Entezit", "Aşil tendon rüptürü"]},
+        {"q": "Spondiloartropatiler için aşağıdakilerden hangisi doğrudur?", "a": ["Reaktif artritte görülen sindesmofitler kalın ve non-marjinaldir.", "Psöriyatik artrit görülme sıklığı kadınlarda erkeklere göre 3 kat daha sıktır.", "Enteropatik artritli hastaların %80'inde HLA-B27 pozitiftir.", "Konjuktivit; ankilozan spondilitte reaktif artrite göre daha sık izlenir.", "Daktilit; reaktif artritte enteropatik artrite göre daha nadir izlenir."]},
+        {"q": "Kronik tofüslü gut için aşağıdakilerden hangisi yanlıştır?", "a": ["Miyokard, göz gibi visseral yapılarda tofüs oluşumu beklenmez.", "Olekranon bursalar, aşil tendonu ve kulak heliksi tofüslerin sık yerleştiği yerlerdendir.", "Tofüs oluşum hızı renal hastalık şiddeti ile ilişkilidir.", "Tofüslerin üzerindeki derinin ülserasyonu halinde dışarı tebeşirimsi bir madde atılabilir.", "Tofüs oluşumu ilk gut artritinden ortalama 10 yıl sonra başlar."]},
+        {"q": "I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "Aşağıde verilen bilgilerden hangileri nöral tüp defekti açısında bilinen risk faktörleri arasında değildir?", "a": ["Folat agonistleri", "Folik asit eksikliği", "İlk trimesterde yüksek ısı ve sıcaklık maruziyeti", "Valproik asit", "Obezite"]},
+        {"q": "Nöral tüp defekti düşünülen ya da bu patoloji ile doğan yenidoğanda aşağıda verilen patolojilerin hangisinin birlikte görülme ihtimali en azdır?", "a": ["Maksilofasial patolojiler (Yarık damak vb.)", "Siringomyeli", "Hidrosefali", "Diastometomyeli", "Lipom"]},
+        {"q": "Spinal kord kompresyonu olan, spinal instabilite gelişen ve hızlı nörolojik bozulma izlenen ekstradural tümörlü bir hastada en uzun ambulatuvar zamanı (yürüyebilme, motor becerisini koruyabilme) sağlayacak girişim ne olmalıdır?", "a": ["Dekompresif cerrahi rezeksiyon + spinal enstrümantasyon + radyoterapi", "Dekompresif cerrahi rezeksiyon", "Dekompresif cerrahi rezeksiyon + radyoterapi", "Spinal enstrümantasyon + radyoterapi", "Yalnız radyoterapi"]},
+        {"q": "Aşağıdakilerden hangisi subaraknoid kanama sonrası mortalitenin en önemli nedenidir?", "a": ["Tekrarlayan kanama", "Hidrosefali", "Ateş", "Nöbet", "Hipertansiyon"]},
+        {"q": "Aşağıdakilerden hangisinin omurga stabilizasyonunda rolu en azdır?", "a": ["Lig. Flavum", "Faset eklemler", "İntervertebral disk", "ALL", "PLL"]},
+        {"q": "Diz ekstansiyonunda yerçekimini yenebilen bir hastanın kas kuvveti kaçtır?", "a": ["3", "1", "2", "4", "5"]},
+        {"q": "Aşağıdakilerden hangisi aksi ispat edilene kadar spinal kord yaralanması olduğu varsayılarak tedavi edilmesine gerek yoktur?", "a": ["Hafif travmalı, sol ön kol extansör yüzde laserasyonu olan, GKP:15, motor ve duyu muayenesi normal, ağrı ve/veya hassasiyet şikayeti olmayan hastalar", "Yüksek enerjili, önemli bir travmaya maruz kalan hastalar", "Bilinç kaybı olan travma hastaları", "Bel ve/veya boyunda ağrısı veya hassasiyeti olan hafif travmalı hastalar", "Hafif travmalı, GKP:15, bir eksremitede hissizlik, karıncalanma, güçsüzlük şikayeti olan hastalar"]},
+        {"q": "Araç dışı trafik kazası öyküsü ile getirilen, IR+/+, sol>sağ anisokorik, gözler kapalı ve ağrılı uyaranla açmayan, emirleri yerine getirmeyen ancak ağrıyı solda lokalize eden fakat alt extremitede motor yanıtı olmayan, konuşmayan ancak ağrılı uyaranla anlamsız sesler çıkartan, spontan solunumu bulunan 42 yaş erkek yaralının Glasgow Koma Skoru kaçtır?", "a": ["GKS = E1M5V2 = 8", "GKS = E1M2V2 = 5", "GKS = E1M5V1 = 7", "GKS = E2M4V2 = 8", "GKS = E1M4V2 = 7"]},
+        {"q": "Aşağıdaki anatomik yapıların hangisinde koroid plexus bulunmaz?", "a": ["Lateral ventriküllerin anterior hornu", "3. ventrikül", "lateral ventriküllerin posterior hornu", "foramen monro", "4. ventrikül"]},
+        {"q": "Sabahları daha kötü olmak üzere baş ağrısı, bulantı-kusması olan hastada ilerleyici papil ödemi de mevcuttur. Tanıda aşağıdakilerden hangisini düşünürsünüz?", "a": ["Kafaiçi yer kaplayıcı lezyon", "subaraknoid kanama", "migren", "subdural hematom", "myestenia gravis"]}
+        ]
+    },
+    {
+        title: "V. Sınav Grubu (Soru 60 - 91)",
+        desc: "32 soru",
+        questions: [
+        {"q": "Aşağıdaki periferik sinirlerden hangisinin tuzaklanması yalnız motor güçsüzlüğe neden olabilir?", "a": ["Posterior interosseöz sinir", "Femoral sinir", "Tibial sinir", "Peroneal sinir", "Siyatik sinir"]},
+        {"q": "T4 komple spinal kord yaralanmalı hastada aniden baş ağrısı, yüzde terleme artışı ve kızarıklık, bradikardi ve hipertansiyon görülüyor. Bu hastada gelişen bu tablonun en olası nedeni aşağıdakilerden hangisidir?", "a": ["Mesane Distansiyonu", "Bası Yarası", "Spastisite", "Pulmoner Emboli", "Spontan kırık gelişimi"]},
+        {"q": "İnmeli hastaların akut ve kronik dönemlerinde uygulanan rehabilitasyon prensipleri ile ilgili aşağıdakilerden hangisi yanlıştır?", "a": ["Akut dönemde uygulanan daimi üriner katater, inkontinansı olan hastalarda kronik dönemde de kullanılmaya devam edilir.", "Akut dönemde erken mobilizasyon hedeflenir.", "Derin solunum ve öksürme egzersizleri verilebilir.", "Yürüyüş bozuklukları için ayak-ayak bileği ortezi kullanılabilir.", "Kronik dönemde; eklem hareket açıklığı, güçlendirme, denge-koordinasyon egzersizleri ve aerobik egzersizler önerilir."]},
+        {"q": "Aşağıdaki hastalıklardan hangisi osteoporoz gelişimi açısından risk taşımaz?", "a": ["Hipotiroidi", "İnme", "Romatoid artrit", "Malabsorbsiyon", "Tip 2 diyabet"]},
+        {"q": "Vertebraların çevresindeki kas ve yumuşak dokunun uzatılması ve eklem aralıklarının arttırılması amacıyla boyun ve bel bölgelerine uygulanan çekme işlemine ne ad verilir?", "a": ["Traksiyon", "Manipulasyon", "Balneoterapi", "Perküsyon", "Vibrasyon"]},
+        {"q": "Aşağıdaki ifadelerden hangisi doğru değildir?", "a": ["İleri yaşlarda bel ağrısının en sık sebebi malignitelerdir.", "S1 Diskopatisinde Aşil refleksi azalmış veya kaybolmuştur", "Lomber diskopati %3-5 oranında cerrahi müdahale gerekir.", "Bel ağrılarının büyük kısmını mekanik sebepler oluşturur", "Traksiyon uygulaması her bel ağrılı olguda kullanılmaz"]},
+        {"q": "Aşağıdakilerden hangisi Romatoid artritli hastada el - el bilek muayenesinde görülmez?", "a": ["Sosis parmak", "Z deformitesi", "Düğme iliği deformitesi", "Fusiform şişlik", "Piyano tuşu belirtisi"]},
+        {"q": "Nöropatik ağrı için doğru değildir?", "a": ["En sık kullanılan medikal tedaviler basit analjeziklerdir.", "En sık semptom yanmadır", "Somatosenseoyel sistemin anormal sensitizasyonudur.", "En sık görülen durum DM", "Tuzak nöropatiler bu duruma iyi bir örnektir"]},
+        {"q": "Femoral germe testi hangi sinir kökleriyle ilgili patolojilerde pozitif olabilir?", "a": ["L2, L3, L4", "S2-4", "S1, S2, S3", "L4, L5, S1", "L4, L5, S1 (tekrar)"]},
+        {"q": "Hawkins testi hangi patolojinin tanımlanmasında kullanılır?", "a": ["Subakromiyan sıkışma sendromları", "Kubital tünel sendromu", "Tarsal tünel sendromu", "Karpal tünel sendromu", "De Quervain hastalığı"]},
+        {"q": "Hemoptizi, dispne ile başvuran 63 yaşında kadın hasta, tedaviye rağmen son üç aydır giderek kötüleşen sinüzit olduğunu bildirmektedir. Laboratuvar tetkiklerinde spot idrarda proteinüri (>0.5mg/dl) ve kan biyokimyasında yüksek kreatinin 1.6 mg/dL dikkat çekmektedir. Bu bulgulara ek olarak, yüksek anti-proteinaz-3 antikor düzeyleri saptanan hastada öncelikle hangi tanı düşünülmelidir?", "a": ["Granülomatozis polianjiitis (Wegener Granülomatozis)", "Poliarteritis nodoza (PAN)", "Anti-glomerüler bazal membran (Goodpasture sendromu) hastalığı", "Henoch-Schönlein purpurası (IgA vaskülit)", "Sistemik lupus eritematozis (SLE)"]},
+        {"q": "On yıldır primer Sjogren Sendromu tanısı ile takip edilmekte olan 55 yaşındaki kadın hastanın, son 3 aydır halsizlik ve parotis bezinde şişlik yakınması ile birlikte fizik muayenesinde posterior servikal lenf bezlerinde büyüme olduğu izlenmektedir. Laboratuvar bulguları içerisinde lökopeni ve düşük kompleman C4 düzeyleri gözlenmektedir. En olası ön tanınız aşağıdakilerden hangisi olmalıdır?", "a": ["Lenfoma", "HIV enfeksiyonu", "Amiloidoz", "Kronik pankreatit", "Sekonder Sjogren Sendromu"]},
+        {"q": "Romatizmal hastalıklara ait klinik bulgular ile bazı spesifik antikorlar arasında ilişki mevcuttur. Bu konu ile ilgili aşağıdakilerden hangisi yanlıştır?", "a": ["Anti-Sm ilaca bağlı lupus sendromunda yüksek duyarlılığa sahiptir", "Anti-U1RNP (titresi >1:1600) miks konnektif doku hastalığı (MKDH) Alarcon-Segovia tanısal kriterleri arasında yer almaktadır", "Anti-ds-DNA pozitifliği, lupus nefrit riskini arttırır.", "Ribozomal P proteini SLE tanısı için yüksek spesifiteye sahiptir", "RNA Polimeraz III sistemik sklerozlu hastalarda renal kriz eğilimini yükseltir"]},
+        {"q": "Sistemik lupus eritematosuz tanısıyla izlenen 34 yaşında kadın hasta kontrol muayenesi için başvuruyor. Herhangi bir yakınması olmayan bu hastada aşağıdaki tetkiklerden hangisi yapılmalıdır?", "a": ["İdrar analizi", "Antinükleer antikor", "Romatoid faktör", "Antistreptolizin O", "Akciğer grafisi"]},
+        {"q": "Spondiloartropatiler için aşağıdakilerden hangisi doğrudur?", "a": ["Reaktif artritte görülen sindesmofitler kalın ve non-marjinaldir.", "Psöriyatik artrit görülme sıklığı kadınlarda erkeklere göre 3 kat daha sıktır.", "Enteropatik artritli hastaların %80'inde HLA-B27 pozitiftir.", "Konjuktivit; ankilozan spondilitte reaktif artrite göre daha sık izlenir.", "Daktilit; reaktif artritte enteropatik artrite göre daha nadir izlenir."]},
+        {"q": "Kronik tofüslü gut için aşağıdakilerden hangisi yanlıştır?", "a": ["Miyokard, göz gibi visseral yapılarda tofüs oluşumu beklenmez.", "Olekranon bursalar, aşil tendonu ve kulak heliksi tofüslerin sık yerleştiği yerlerdendir.", "Tofüs oluşum hızı renal hastalık şiddeti ile ilişkilidir.", "Tofüslerin üzerindeki derinin ülserasyonu halinde dışarı tebeşirimsi bir madde atılabilir.", "Tofüs oluşumu ilk gut artritinden ortalama 10 yıl sonra başlar."]},
+        {"q": "I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "58 yaşında kadın hasta, yaklaşık 1 yıldır kollarda güçsüzlük, ellerini kullanmada zorluk şikayeti var. Eline aldığı nesneleri düşürdüğünü ifade ediyor. Son 4-5 aydır yürürken de dengesizlik yaşadığını, etraftan destek alma ihtiyacı hissettiğini belirtiyor. Bu hastada en olası tanınız nedir?", "a": ["Servikal myelomalazi", "Servikal radikülopati", "Lomber radikülopati", "Karpal tünel sendromu", "Servikal-lomber spondiloz"]},
+        {"q": "Servikal strain-sprain durumlarında servikal grafide görülebilecek bulgu hangisidir?", "a": ["Servikal lordozda azalma", "Disk mesafesinde daralma", "Osteofit", "Disk kompresyonu", "Servikal lordoz artışı"]},
+        {"q": "55 yaşında obez kadın hasta, son 15 gündür yürümekle sağ ayak tabanında ağrı hissediyor. Herhangi bir travma öyküsü yok. Muayenesinde sağ ayak tabanında, özellikle topuk çevresinde hafif şişlik ve palpasyonla ağrısı var. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Plantar fasiit", "Halluks valgus", "Aşil tendiniti", "Entezit", "Aşil tendon rüptürü"]},
+        {"q": "Subakromiyal sıkışma sendromunda en sık etkilenen kas hangisidir?", "a": ["Supraspinatus", "Infraspinatus", "Teres Minör", "Teres majör", "Subskapularis"]},
+        {"q": "Hidrosefali tedavi yöntemlerinden olan üçüncü ventrikülostomi yapılırken aşağıdaki hangi anatomik bölgeyi görmeyiz?", "a": ["Pineal bez", "lateral ventrikül", "foramen monro", "mamiller cisimcikler", "dorsum sella"]},
+        {"q": "Baş ağrısı, bulantı-kusma, ve oftalmik muayenesinde papil ödemi olan hastanın tanısında ne düşünürsünüz?", "a": ["Kafa içi yer kaplayan lezyon", "Subperiostal kanama", "Subgaleal hematom", "Migren", "Myastenia gravis"]},
+        {"q": "L4-L5 farlateral disk hernisi hangi köke bası yaparak klinik bulgu verir?", "a": ["L4 kökü", "L5 kökü", "S1 kökü", "L3 kökü", "L2 kökü"]},
+        {"q": "Aşağıdakilerden hangisinin omurga stabilizasyonunda rolu en azdır?", "a": ["Lig. Flavum", "Faset eklemler", "İntervertebral disk", "ALL", "PLL"]},
+        {"q": "Aşağıdakilerden hangisi aksi ispat edilene kadar spinal kord yaralanması olduğu varsayılarak tedavi edilmesine gerek yoktur?", "a": ["Hafif travmalı, sol ön kol extansör yüzde laserasyonu olan, GKP:15, motor ve duyu muayenesi normal, ağrı ve/veya hassasiyet şikayeti olmayan hastalar", "Yüksek enerjili, önemli bir travmaya maruz kalan hastalar", "Bilinç kaybı olan travma hastaları", "Bel ve/veya boyunda ağrı veya hassasiyeti olan hafif travmalı hastalar", "Hafif travmalı, GKP:15, bir eksremitede hissizlik, karıncalanma, güçsüzlük şikayeti olan hastalar"]},
+        {"q": "Araç dışı trafik kazası öyküsü ile getirilen, IR+/+, sol>sağ anisokorik, gözler kapalı ve ağrılı uyaranla açmayan, emirleri yerine getirmeyen ancak ağrıyı solda lokalize eden fakat alt extremitede motor yanıtı olmayan, konuşmayan ancak ağrılı uyaranla anlamsız sesler çıkartan, spontan solunumu bulunan 42 yaş erkek yaralının Glasgow Koma Skoru kaçtır?", "a": ["GKS = E1M5V2 = 8", "GKS = E1M2V2 = 5", "GKS = E1M5V1 = 7", "GKS = E2M4V2 = 8", "GKS = E1M4V2 = 7"]},
+        {"q": "Aşağıde verilen bilgilerden hangileri nöral tüp defekti açısında bilinen risk faktörleri arasında değildir?", "a": ["Folat agonistleri", "Folik asit eksikliği", "İlk trimesterde yüksek ısı ve sıcaklık maruziyeti", "Valproik asit", "Obezite"]},
+        {"q": "NÖRAL TÜP DEFEKTİ DÜŞÜNÜLEN YA DA BU PATOLOJİ İLE DOĞAN YENİDOĞANDA AŞAĞIDA VERİLEN PATOLOJİLERİN HANGİSİNİN BİRLİKTE GÖRÜLME İHTİMALİ EN AZDIR?", "a": ["MAKSİLOFASİAL PATOLOJİLER (YARIK DAMAK VB.)", "SYRİNGOMYELİ", "HİDROSEFALİ", "DİASTOMETOMYELİ", "LİPOM"]},
+        {"q": "Spinal kord kompresyonu olan, spinal instabilite gelişen ve hızlı nörolojik bozulma izlenen ekstradural tümörlü bir hastada en uzun ambulatuvar zamanı (yürüyebilme, motor becerisini koruyabilme) sağlayacak girişim ne olmalıdır?", "a": ["Dekompresif cerrahi rezeksiyon + spinal enstrümantasyon + radyoterapi", "Dekompresif cerrahi rezeksiyon", "Dekompresif cerrahi rezeksiyon + radyoterapi", "Spinal enstrümantasyon + radyoterapi", "Yalnız radyoterapi"]},
+        {"q": "Aşağıdakilerden hangisi subaraknoid kanama sonrası mortalitenin en önemli nedenidir?", "a": ["Tekrarlayan kanama", "Hidrosefali", "Ateş", "Nöbet", "Hipertansiyon"]}
+        ]
+    },
+    {
+        title: "VI. Sınav Grubu (Soru 60 - 91)",
+        desc: "32 soru",
+        questions: [
+        {"q": "aşağıdakilerden hangisi nöropatik ağrıya bir örnektir.", "a": ["kompleks bölgesel ağrı sendromu tip 2", "biceps tenosinovit", "kalsifik tendinit", "renal kolik", "lomber dejenere disk hastalığı"]},
+        {"q": "Aşağıdakilerden hangisi omuz patolojilerini değerlendirilmesinde kullanılan bir testtir", "a": ["Hawkins testi", "mc murray testi", "apley testi", "schober testi", "düz bacak kaldırma testi"]},
+        {"q": "aşağıdakilerden hangisi bel ağrısının akut tedavisinde kullanılmaz?", "a": ["amitriptilin", "gabapentin", "nonsteroid anti inflamatuvar ilaçlar", "kas gevşeticiler", "parosetamol"]},
+        {"q": "Aşağıdaki enzimlerden hangisi Romatoid artrit etyopatogenezinde önemli bir rol oynar?", "a": ["peptidil arginin deiminaz", "timidilat sentetaz", "karbonik anhidraz", "kollajenaz", "Glutamat dehidrogenaz"]},
+        {"q": "Aşağıdaki eklemlerden hangisi romatoid artritte en sık tutulur?", "a": ["metakarpafalangeal eklem", "diz eklemi", "dirsek eklemi", "kalça eklemi", "temporamandibular eklem"]},
+        {"q": "On yıldır primer Sjogren Sendromu tanısı ile takip edilmekte olan 55 yaşındaki kadın hastanın, son 3 aydır halsizlik ve parotis bezinde şişlik yakınması ile birlikte fizik muayenesinde posterior servikal lenf bezlerinde büyüme olduğu izlenmektedir. Laboravuvar bulguları içerisinde lökopeni ve düşük kompleman C4 düzeyleri gözlenmektedir. En olası ön tanınız aşağıdakilerden hangisi olmalıdır?", "a": ["Lenfoma", "HIV enfeksiyonu", "Amiloidoz", "Kronik pankreatit", "Sekonder Sjogren Sendromu"]},
+        {"q": "17 yaşında erkek hasta göğüs sağ yanında son 2 gündür devam eden batıcı tarzda ağrı yakınması ile başvuruyor. Altı ay önceye 3 gün kadar süren benzer ağrı ve ateş yakınması olmuş. Yeni bakılan tetkiklerinde akut faz yanıtı yüksek. Bu hasta için aşağıdaki tanılardan hangisi ilk olarak araştırılmalıdır?", "a": ["Ailesel akdeniz ateşi", "Romatoid artrit", "Behçet hastalığı", "Reaktif artrit", "Sarkoidoz"]},
+        {"q": "Romatoid artrit için aşağıdaki laboratuvar testlerinden hangisi daha spesifiktir?", "a": ["Anti-siklik sitrüline peptit antikor (ACPA)", "Yüksek akut faz reaktanı", "Trombositoz", "Romatoid faktör", "Kronik hastalık anemisi"]},
+        {"q": "64 yaşında kadın hasta, 3 aydır devam eden, son 1 haftadır şiddetlenen boyun ağrısı varmış. Ağrısı kollara yayılıyor ancak güçsüzlük hissetmiyormuş. Fizik muayenesinde baş-boyun hareketleri özellikle ekstansiyon og sağ lateral fleksiyonda ağrılı, kuvvet defisiti yok, refleksler normoaktif. Bu hastada ilk planda hangi tetkiki isterdiniz?", "a": ["2 yönlü direkt boyun grafisi", "Tetkik istemeye gerek yoktur", "Servikal MR", "Sedimentasyon-CRP-Hemogram", "Ürik asit"]},
+        {"q": "55 yaşında obez kadın hasta, son 15 gündür yürümekle sağ ayak tabanında ağrı hissediyor. Herhangi bir travma öyküsü yok. Muayenesinde sağ ayak tabanında, özellikle topuk çevresinde hafif şişlik ve palpasyonla ağrısı var. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Plantar fasiit", "Halluks valgus", "Aşil tendiniti", "Entezit", "Aşil tendon rüptürü"]},
+        {"q": "45 yaşında erkek hasta, son 3 aydır devam eden ve giderek artan omuz ağrısı şikayeti var. Travma öyküsü tariflemiyor. Omuz ağrısının giderek arttığını, ağrı kesici ile artık rahatlamadığını ifade ediyor. Özgeçmiş: 3 yıldır Hipertansiyon, 12 yıldır DM ile takipli. Fizik muayene: Omuz EHA: Her yönde aktif ve pasif kısıtlılık var, dış rotasyon ve abduksiyonda ağrı daha belirgin. Eklemde ısı artışı-şişlik saptanmadı. Bu hastada en olası tanınız nedir?", "a": ["Adeziv kapsülit", "Subakromiyal sıkışma sendromu", "Akromiyoklaviküler artrit", "Supraspinatus tendiniti", "Kalsifik tendinit"]},
+        {"q": "58 yaşında kadın hasta, yaklaşık 1 yıldır kollarda güçsüzlük, ellerini kullanmada zorluk şikayeti var. Eline aldığı nesneleri düşürdüğünü ifade ediyor. Son 4-5 aydır yürürken de dengesizlik yaşadığını, etraftan destek alma ihtiyacı hissettiğini belirtiyor. Bu hastada en olası tanınız nedir?", "a": ["Servikal myelomalazi", "Servikal radikülopati", "Lomber radikülopati", "Karpal tünel sendromu", "Servikal-lomber spondiloz"]},
+        {"q": "Hemoptizi, dispne ile başvuran 63 yaşında kadın hasta, tedaviye rağmen son üç aydır giderek kötüleşen sinüzit olduğunu bildirmektedir. Laboratuvar tetkiklerinde spot idrarda proteinüri (>0,5mg/dl) ve kan biyokimyasında yüksek kreatinin 1,6 mg/dL dikkat çekmektedir. Bu bulgulara ek olarak, yüksek anti-proteinaz-3 antikor düzeyleri saptanan hastada öncelikle hangi tanı düşünülmelidir?", "a": ["Granülomatozis polianjiitis (Wegener granülomatozis)", "Poliarteritis nodoza (PAN)", "Anti-glomerüler bazal membran (Goodpasture sendromu) hastalığı", "Henoch-Schönlein purpurası (IgA vaskülit)", "Sistemik lupus eritematozis (SLE)"]},
+        {"q": "Kronik tofüslü gut için aşağıdaki hangisi yanlıştır?", "a": ["Miyokard, göz gibi visseral yapılarda tofüs oluşumu beklenmez.", "Olekranon bursalar, aşil tendonu ve kulak heliksi tofüslerin sık yerleştiği yerlerdendir.", "Tofüs oluşum hızı renal hastalık şiddeti ile ilişkilidir.", "Tofüslerin üzerindeki derinin ülserasyonu halinde dışarı tebeşirimsi bir madde atılabilir.", "Tofüs oluşumu ilk gut artritinden ortalama 10 yıl sonra başlar."]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden Hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "62 yaşında bayan hasta sağ dizde 10 gündür devam eden şişlik ve ağrı şikayeti ile geliyor. F.M sağ dizde effüzyon ve ısı artışı mevcut. eklem hareket açıklığı kısıtlanmış laboratuvar incelemesinde Akut faz yanıtını yüksek diğer parametreler normal sınırlarda. çekilen grafisi görselde görülen hastanın olası ön tanısı nedir?", "a": ["pseudogut", "septik artrit", "osteoartrit", "gut", "sinovyal kondromatozis"]},
+        {"q": "Spinal kordda torakal 6 (T6) seviyesinde hasarı olan bir hastada aşağıdaki klinik tablolardan hangisi beklenir?", "a": ["Parapleji", "Monopleji", "Quadripleji", "Tetrapleji", "Hemipleji"]},
+        {"q": "Karpal tünel sendromu için aşağıdakilerden hangisi doğrudur?", "a": ["Ağrı ve parestezi omuza vurabilir.", "Semptomlar özellikle gündüz saatlerinde belirginleşir.", "İnterosseöz kaslarda atrofi tespit edilebilir.", "Hipotenar kaslarda atrofi izlenebilir.", "Erkeklerde daha sık görülür."]},
+        {"q": "İnme hastalarının akut dönemdeki klinikleriyle ilgili aşağıdaki ifadelerden hangisi yanlıştır?", "a": ["Serebral kontrolün ortadan kalkması ile spinal düzeydeki inhibisyon artar.", "Sinerji adı verilen ilkel hareket paternleri ve refleksler ortaya çıkar.", "Tutulan ekstremitede flask dönem sonrası spastisite başlayabilir.", "Proksimal fonksiyonlar distallere göre daha erken döner.", "Alt ekstremite fonksiyonları üst ekstremiteye göre daha erken geri döner."]},
+        {"q": "65 yaşında sırt ağrısıyla başvuran kadın hastanın direk grafisinde torakal vertebralarda yükseklik kaybı izleniyor. Dual enerji x-ray absorbsiometri kullanılarak kemik mineral yoğunluğu ölçülüyor. L1-L4 T skoru -3.0 olarak belirleniyor. Bu hastaya yaklaşım ile ilgili aşağıdakilerden hangisi yanlıştır?", "a": ["Hasta osteopenik olduğundan düşme önleyici yaklaşımlar önemlidir.", "Laboratuvar tetkikleri ile bifosfanat tedavisi başlanabilir.", "Bir yıl sonra kemik mineral yoğunluğu tekrar değerlendirilmelidir.", "Serum 25(OH) D düzeyi <=20 ng/ml olanlarda D vitamini yüklemesi gerekir.", "Önerilen günlük elemental kalsiyum alımı 1200 mg'dır."]},
+        {"q": "Aşağıdakilerden hangisi fizik tedavi uygulamalarından olan derin ısıtıcı tedaviler için bir kontrendikasyon oluşturmaz?", "a": ["Yumuşak doku romatizmaları", "Gebelik", "Kanama Diyatezi", "Maligniteler", "Dekompanse kalp yetmezliği"]},
+        {"q": "Aşağıdakilerden hangisi aksi ispat edilene kadar spinal kord yaralanması olduğu varsayılarak tedavi edilmesine gerek yoktur?", "a": ["Hafif travmalı, sol ön kol ekstansör yüzde laserasyonu olan, GKP:15, motor ve duyu muayenesi normal, ağrı ve/veya hassasiyet şikayeti olmayan hastalar", "Yüksek enerjili, önemli bir travmaya maruz kalan hastalar", "Bilinç kaybı olan travma hastaları", "Bel ve/veya boyunda ağrı veya hassasiyeti olan hafif travmalı hastalar", "Hafif travmalı, GKP:15, bir eksremitede hissizlik, karıncalanma, güçsüzlük şikayeti olan hastalar"]},
+        {"q": "Balıklama denize atlama sonrası hastaneye getirilen, C6-7 düzeyinde ileri anterior dislokasyon ve bu seviyesinin altında tam medüller kesi bulguları saptanan hastada aşağıdakilerden hangisi görülmez?", "a": ["Göbek seviyesinden itibaren tam duyu kaybı", "Alt ekstremitelerde refleks kaybı", "Korunmuş omuz hareketleri", "Anal sfinkter tonusunun kaybolması", "Üriner sfinkter kontrol kusuru"]},
+        {"q": "SSS TÜMÖRLERİ İLE İLGİLİ VERİLEN BİLGİLERDEN HANGİSİ YANLIŞTIR?", "a": ["SSS TÜMÖRLERİNİN BAŞKA ORGAN METASTAZLARI SIK GÖRÜLÜR.", "CERRAHİ REZEKSİYON SINIRLI OLABİLİR.", "KLİNİK GENEL SEMPTOMLAR DIŞINDA YERLEŞİM İLE İLGİLİDİR.", "BENİNG-MALİGN AYRIMI DAHA AZ BELİRGİNDİR.", "METASTAZLAR EN SIK SSS TÜMÖRLERİDİR."]},
+        {"q": "NÖROJENİK VE VASKÜLER KLADİKASYO AYIRICI TANISINDA AŞAĞIDA VERİLEN BİLGİLERDEN HANGİSİ YANLIŞTIR?", "a": ["VASKÜLER KLADİKASYODA AĞRI POSTÜRE BAĞLIDIR. FLEKSİYON POSTÜRDE ŞİKAYETLER AZALIR.", "NÖROJENİK KLADİKASYONDA AĞRI DAHA ÇOK DERMATOMAL OLUR.", "AYAK ELEVE EDİLİNCE VASKÜLER PATOLOJİDE AYAK SOLUKLAŞIR.", "NABIZ DEĞİŞİKLİKLERİ VASKÜLER PATOLOJİLERDE OLUR.", "NÖROJENİK KLADİKASYODA ŞİKAYETLER SIKLIKLA İLERLEYİCİDİR."]},
+        {"q": "Aşağıdakilerden hangisi subaraknoid kanama sonrası mortalitenin en önemli nedenidir?", "a": ["Tekrarlayan kanama", "Hidrosefali", "Ateş", "Nöbet", "Hipertansiyon"]},
+        {"q": "Erişkin çağda spinal kemikleri tutan en sık malign tümör hangisidir?", "a": ["Multiple Myelom", "Osteoid osteoma", "Osteokondrom", "Osteoblastom", "Kondrosarkom"]},
+        {"q": "Diz ekstansiyonunda yerçekimini yenebilen bir hastanın kas kuvveti kaçtır?", "a": ["3", "1", "2", "4", "5"]},
+        {"q": "L5 radikülopatide aşağıdakilerden hangisinin olmasını beklersiniz?", "a": ["Kalça abdüksiyonunda kuvvet kaybı.", "Diz ekstansiyonunda kuvvet kaybı.", "Plantar fleksiyonda kuvvet kaybı.", "Aschill refleksinde azalma.", "Patella refleksinde azalma."]},
+        {"q": "Sağ temporo-paryetal bölgede oluşan epidural hematom varlığında supratentoryal kompartmanda meydana gelen basınç artışı , tentorial açıklıktan ilk olarak hangi anatomik yapının yer değiştirmesine (herniasyona) neden olur?", "a": ["Unkus", "İnsula", "Serebellar tonsiller", "Amigdala", "Lateral ventrikül"]},
+        {"q": "Aşağıdaki anatomik yapıların sayıları hakkında hangisi doğrudur? foramen monro (FM), Aqiaductus sylvi (AS)", "a": ["İki FM, Bir AS", "Bir FM, İki AS", "İki FM, İki AS", "Bir FM, Bir AS", "Üç FM, İki AS"]}
+        ]
+    },
+    {
+        title: "VII. Sınav Grubu (Soru 60 - 91)",
+        desc: "32 soru",
+        questions: [
+        {"q": "T4 komplet spinal kord yaralanmalı hastada aniden baş ağrısı, yüzde terleme artışı, bradikardi ve hipertansiyon görülüyor. Hastada gelişen bu tablonun en olası nedeni aşağıdakilerden hangisidir?", "a": ["Mesane Distansiyonu", "Bası Yarası", "Spastisite", "Pulmoner Emboli", "Spontan Kırık gelişimi"]},
+        {"q": "İnme hastalarının akut dönemdeki klinikleriyle ilgili aşağıdaki ifadelerden hangisi yanlıştır?", "a": ["Serebral kontrolün ortadan kalkması ile spinal düzeydeki inhibisyon artar.", "Sinerji adı verilen ilkel hareket paternleri ve refleksler ortaya çıkar.", "Tutulan ekstremitede flask dönem sonrası spastisite başlayabilir.", "Proksimal fonksiyonlar distallere göre daha erken döner.", "Alt ekstremite fonksiyonları üst ekstremiteye göre daha erken geri döner."]},
+        {"q": "Osteoporoz hastalarında aşağıdaki bölgelerden hangisi kırık açısından en az risklidir?", "a": ["Distal tibia", "Distal Radius", "Femur başı", "Torakal vertebra", "Lomber vertebra"]},
+        {"q": "Kırk sekiz yaşında fırında çalışan erkek hasta, 3 aydır giderek artan sağ el baş parmak ve ikinci parmak arasında cisimleri rahat kavrayamama ve ön kolda ağrı şikayeti ile başvuruyor. Travma veya sistemik hastalık öyküsü yok. 2 yıl önce sol el bileğinden karpal tünel sendromu nedeniyle ameliyat geçirmiş. Muayenesinde sağ el baş parmak interfalangeal ve 2. parmak distal interfalangeal eklem fleksiyonunda güçsüzlük tespit ediliyor. Hastanın bu iki parmak arasında yuvarlak 'O' işareti yapamadığı görülüyor. Bu tanıda aşağıdakilerden hangisi düşünülür?", "a": ["Anterior İnterosseöz Sinir Sendromu", "Kübital Tünel Sendromu", "Guyon Kanalı Sendromu", "Karpal Tünel Sendromu", "Posterior İnterosseöz Sinir Sendromu"]},
+        {"q": "Vücudunda metal implantı olan bir hastaya aşağıdaki fizik tedavi ajanlarından hangisi uygulanmaz?", "a": ["Kısa dalga diatermi", "UV ışın tedavisi", "TENS", "Diadinami", "İnterferansiyel akım"]},
+        {"q": "On yıldır primer Sjogren Sendromu tanısı ile takip edilmekte olan 55 yaşındaki kadın hastanın, son 3 aydır halsizlik ve parotis bezinde şişlik yakınması ile birlikte fizik muayenesinde posterior servikal lenf bezlerinde büyüme olduğu izlenmektedir. Laboratuvar bulguları içerisinde lökopeni ve düşük kompleman C4 düzeyleri gözlenmektedir. En olası ön tanınız aşağıdakilerden hangisi olmalıdır?", "a": ["Lenfoma", "HIV enfeksiyonu", "Amiloidoz", "Kronik pankreatit", "Sekonder Sjogren Sendromu"]},
+        {"q": "Romatoid artrit için aşağıdaki laboratuvar bulgularından hangisi daha spesifiktir?", "a": ["Anti-siklik sitrüline peptit (Anti-CCP) antikoru", "Yüksek akut faz reaktanı", "Romatoid faktör", "Kronik hastalık anemisi", "Trombositoz"]},
+        {"q": "17 yaşında erkek hasta göğüs sağ yanında son 2 gündür devam eden batıcı tarzda ağrı yakınması ile başvuruyor. Altı ay önceye 3 gün kadar süren benzer ağrı ve ateş yakınması olmuş. Yeni bakılan tetkiklerinde akut faz yanıtı yüksek. Bu hasta için aşağıdaki tanılardan hangisi ilk olarak araştırılmalıdır?", "a": ["Ailesel akdeniz ateşi", "Romatoid artrit", "Behçet hastalığı", "Reaktif artrit", "Sarkoidoz"]},
+        {"q": "Aşağıdakilerden hangisi Behçet hastalığında vasküler tutulum için doğru bir ifade değildir?", "a": ["Arteriyel tutulum venöz tutuluma göre daha sıktır.", "Değişken çaptaki damarlar etkilenebilir.", "Arteriyel tutulumda genellikle anevrizma gelişir.", "Venöz tutulum en sık alt ekstremite derin venleri etkiler.", "Vasküler tutulum genç erkek hastalarda daha yaygındır."]},
+        {"q": "55 yaşında obez kadın hasta, son 15 gündür yürümekle sağ ayak tabanında ağrı hissediyor. Herhangi bir travma öyküsü yok. Muayenesinde sağ ayak tabanında, özellikle topuk çevresinde hafif şişlik ve palpasyonla ağrısı var. Bu hastada en olası tanı aşağıdakilerden hangidir?", "a": ["Plantar fasiit", "Halluks valgus", "Aşil tendiniti", "Entezit", "Aşil tendon rüptürü"]},
+        {"q": "62 yaşında kadın hasta, boyun ve kollarda ağrı şikayetiyle başvurdu. Ağrılarının 1 yıldır devam ettiğini, kollarının ve ellerinin güçsüzleştiğini, boynunda tutukluk hissettiğini belirtiyor. Son 1 aydır yürümekte de zorlanıyormuş. Muayenesinde baş-boyun hareketleri ağrılı ve hafif kısıtlı, el kasları atrofik, derin tendon refleksleri artmış bulundu. Bu hastada aşağıdaki tetkiklerden hangisi tanı koydurucudur?", "a": ["Manyetik rezonans görüntüleme", "Direkt radyografi", "Ultrasonografi", "Bilgisayarlı tomografi", "Elektronöromiyografi"]},
+        {"q": "55 yaşında obez, kadın hasta, sağ uyluk ve bacakta ağrı tarifliyor. Oturduğu yerden kalkarken, uzun mesafe yürüdüğünde ve merdiven inip çıkmakla ağrısı şiddetleniyormuş. Muayenesinde; sağda antajlik yürüyüşü var, sağ kalça eklem hareketlerinde fleksiyon ve iç rotasyonda kasıkta ciddi ağrı hissediyor ve hafif kısıtlılık var. Laboratuvar tetkiklerinde Sedimentasyon 27mm/sa, CRP 1 mg/L, WBC 7000µL. Aşağıdakilerden hangisi bu hastanın tedavisinde uygun olmayacaktır?", "a": ["Bir ay süreli mutlak yatak istirahati", "2gr/gün Parasetamol", "Diklofenak sodyum", "Kilo verme önerisi", "Kalça kuşağı kuvvetlendirme"]},
+        {"q": "48 yaşında erkek hasta, 2 gün önce ağaç dalına hızla asıldıktan sonra omuz ağrısı başlamış. Kolunu yukarı kaldıramıyor ve arkaya alamıyormuş. Geceleri ağrısı daha da şiddetleniyor, omuzunun üzerine yatamıyormuş. Fizik muayenesinde omuz abduksiyonu 60 derece sonrası ağrılı, dış rotasyonda ciddi ağrı hissediyor ve kısıtlılık var. Bu hastada en olası tanınız nedir?", "a": ["Subakromiyal sıkışma sendromu", "Bisipital tendinit", "Adeziv kapsülit", "Biseps tendon rüptürü", "Akromiyoklaviküler artrit"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzenisizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "Aşağıdakilerden hangisi gut hastalığı tedavisinde ürik asit yapımını azaltarak etki gösterir?", "a": ["Febuksostat", "Probenesid", "Benzbromaron", "Peglotikaz", "Rilonasept"]},
+        {"q": "I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden Hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "Kronik tofüslü gut için aşağıdakilerden hangisi yanlıştır?", "a": ["Miyokard, göz gibi visseral yapılarda tofüs oluşumu beklenmez.", "Olekranon bursalar, aşil tendonu ve kulak heliksi tofüslerin sık yerleştiği yerlerdendir.", "Tofüs oluşum hızı renal hastalık şiddeti ile ilişkilidir.", "Tofüslerin üzerindeki derinin ülserasyonu halinde dışarı tebeşirimsi bir madde atılabilir.", "Tofüs oluşumu ilk gut artritinden ortalama 10 yıl sonra başlar."]},
+        {"q": "Femoral germe testi hangi sinir kökleriyle ilgili patolojilerde pozitif olabilir?", "a": ["L2, L3, L4", "S2-4", "S1, S2, S3", "L4, L5, S1", "L4, L5, S1"]},
+        {"q": "Romatoid artritte en sık görülen ekstraartikuler hangisidir?", "a": ["Subkutan nodul", "Karpal tünel sendromu", "Atrofi", "Episklerit", "Perikardit"]},
+        {"q": "Hangisi L4-5 diskopatinin (L5 kök basısı) bulgusu değildir?", "a": ["Patellar reflekste azalma", "Ayak başparmakta dorsofleksiyonunda kuvvet kaybı", "Pozitif Laseque resti", "Kruriste atrofi", "Kullanmakla artan bel bacak ağrısı"]},
+        {"q": "aşağıdakilerden hangisi bel ağrısının akut tedavisinde kullanılmaz?", "a": ["amitriptilin", "gabapentin", "nonsteroid anti inflamatuvar ilaçlar", "kas gevşeticiler", "parosetamol"]},
+        {"q": "Romatoid artritte antijenin sunumu engelleyerek T hücre ko inhibisyonu yapan medikal tedavi aşağıdakilerden hangisidir", "a": ["Abatacept", "Adalimumab", "Etanercept", "Rituximab", "İnfliksimab"]},
+        {"q": "Acil servise 20 aylık kaza sonucu düştüğü belirtilerek getirilen, minör kafa travmalı bir çocukta, aşağıdakilerden hangisi çocuk istismarına yönelik en az kuşku uyandırır?", "a": ["Bulantı, kusma", "Retinal kanama", "<2 yaş altındaki bir çocukta bilateral kronik subdural hematom", "İntrakranial yaralanma ile birlikte olan veya birden fazla sayıda kafatası kırıkları", "Dışarıdan fazlaca travma belirtisi olmayan ancak önemli derecede nörojolik hasarı olması"]},
+        {"q": "Balıklama denize atlama sonrası hastaneye getirilen, C 6-7 düzeyinde ileri anterior dislokasyon ve bu seviyesinin altında tam medüller kesi bulguları saptanan hastada aşağıdakilerden hangisi görülmez?", "a": ["Göbek seviyesinden itibaren tam duyu kaybı", "Alt ekstremitelerde refleks kaybı", "Korunmuş omuz hareketleri", "Anal sfinkter tonusunun kaybolması", "Üriner sfinkter kontrol kusuru"]},
+        {"q": "NÖROJENİK VE VASKÜLER KLADİKASYO AYIRICI TANISINDA AŞAĞIDA VERİLEN BİLGİLERDEN HANGİSİ YANLIŞTIR?", "a": ["VASKÜLER KLADİKASYODA AĞRI POSTÜRE BAĞLIDIR. FLEKSİYON POSTÜRDE ŞİKAYETLER AZALIR.", "NÖROJENİK KLADİKASYONDA AĞRI DAHA ÇOK DERMATOMAL OLUR.", "AYAK ELEVE EDİLİNCE VASKÜLER PATOLOJİDE AYAK SOLUKLAŞIR.", "NABIZ DEĞİŞİKLİKLERİ VASKÜLER PATOLOJİLERDE OLUR.", "NÖROJENİK KLADİKASYODA ŞİKAYETLER SIKLIKLA İLERLEYİCİDİR."]},
+        {"q": "NÖRAL TÜP DEFEKTİ DÜŞÜNÜLEN YA DA BU PATOLOJİ İLE DOĞAN YENİDOĞANDA AŞAĞIDA VERİLEN PATOLOJİLERİN HANGİSİNİN BİRLİKTE GÖRÜLME İHTİMALİ EN AZDIR?", "a": ["MAKSİLOFASİAL PATOLOJİLER (YARIK DAMAK VB.)", "SYRİNGOMYELİ", "HİDROSEFALİ", "DİASTOMETOMYELİ", "LİPOM"]},
+        {"q": "Erişkin çağın en sık malign kemik tümörü aşağıdakilerden hangisidir?", "a": ["Multipl myelom", "Osteid osteoma", "Osteoblastom", "Hemanjiom", "Kondrosarkom"]},
+        {"q": "Aşağıdakilerden hangisi subaraknoid kanama sonrası mortalitenin en önemli nedenidir?", "a": ["Tekrarlayan kanama", "Hidrosefali", "Ateş", "Nöbet", "Hipertansiyon"]},
+        {"q": "Diz ekstansiyonunda yerçekimini yenebilen bir hastanın kas kuvveti kaçtır?", "a": ["3", "1", "2", "4", "5"]},
+        {"q": "Aşağıdakilerden hangisinin omurga stabilizasyonunda rolu en azdır?", "a": ["Lig. Flavum", "Faset eklemler", "İntervertebral disk", "ALL", "PLL"]},
+        {"q": "Hidrosefali tedavi yöntemlerinden olan üçüncü ventrikülostomi yapılırken aşağıdaki hangi anatomik bölgeyi görmeyiz?", "a": ["Pineal bez", "lateral ventrikül", "foramen monro", "mamiller cisimcikler", "dorsum sella"]},
+        {"q": "sabahları daha kötü olmak üzere baş ağrısı, bulantı kusma sı olan hastada ilerleyici papil ödemide mevcuttur. Tanıda aşağıdakilerden hangisini düşünürsünüz", "a": ["Kafaiçi yer kaplayıcı lezyon", "subaraknoid kanama", "migren", "subdural hematom", "myestenia gravis"]}
+        ]
+    },
+    {
+        title: "VIII. Sınav Grubu (Soru 60 - 91)",
+        desc: "31 soru",
+        questions: [
+        {"q": "Aşağıdakilerden hangisi polimiyaljia romatika için doğru değildir?", "a": ["Omuz ve kalça kaslarında kuvvetsizlik tipik bulgusudur.", "Laboratuvar değerlendirmede RF veya anti-CCP negatiftir.", "Yaşlı popülasyonda romatoid artritten sonra en sık görülen sistemik inflamatuvar hastalıktır.", "Klinik bulgular sinsi ya da subakut başlangıç göstermektedir.", "Omuz ağrısı tek taraflı başlangıç gösterse de haftalar içerisinde simetrik tutulum gelişir."]},
+        {"q": "Aşağıdakilerden hangisi Behçet hastalığında vasküler tutulum için doğru bir ifade değildir?", "a": ["Arteriyel tutulum venöz tutuluma göre daha sıktır.", "Değişken çaptaki damarlar etkilenebilir.", "Arteriyel tutulumda genellikle anevrizma gelişir.", "Venöz tutulum en sık alt ekstremite derin venleri etkiler.", "Vasküler tutulum genç erkek hastalarda daha yaygındır."]},
+        {"q": "Aşağıdakilerden hangisi pozitif akut faz reaktanı değildir?", "a": ["Transferrin", "Seruplazmin", "Sedimentasyon", "Fibrinojen", "Ferritin"]},
+        {"q": "17 yaşında erkek hasta göğüs sağ yanında son 2 gündür devam eden batıcı tarzda ağrı yakınması ile başvuruyor. Altı ay önceye 3 gün kadar süren benzer ağrı ve ateş yakınması olmuş. Yeni bakılan tetkiklerinde akut faz yanıtı yüksek. Bu hasta için aşağıdaki tanılardan hangisi ilk olarak araştırılmalıdır?", "a": ["Ailesel akdeniz ateşi", "Romatoid artrit", "Behçet hastalığı", "Reaktif artrit", "Sarkoidoz"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden Hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "Aşağıdakilerden hangisi gut hastalığı tedavisinde ürik asit yapımını azaltarak etki gösterir?", "a": ["Febuksostat", "Probenesid", "Benzbromaron", "Peglotikaz", "Rilonasept"]},
+        {"q": "-Spondiloartropatiler için aşağıdakilerden hangisi doğrudur?", "a": ["Reaktif artritte görülen sindesmofitler kalın ve non-marjinaldir.", "Psöriyatikartrit görülme sıklığı kadınlarda erkeklere göre 3 kat daha sıktır.", "Enteropatikartritli hastaların %80 inde HLA-B27 pozitiftir.", "Konjuktivit; ankilozanspondilitte reaktif artrite göre daha sık izlenir.", "Daktilit ; reaktifartritte enteropatikartrite göre daha nadir izlenir."]},
+        {"q": "Aşağıdakilerden hangisi omuz patolojilerini değerlendirilmesinde kullanılan bir testtir", "a": ["Hawkins testi", "mc murray testi", "apley testi", "schober testi", "düz bacak kaldırma testi"]},
+        {"q": "RA ile ilgili hangi ifade yanlıştır.", "a": ["Temel tedaviye başlamak için erezyon gelişimi beklenmelidir.", "Erezyon gelişim X-ray den önce USG ile tespit edilebilir.", "Subkutan noduller hastalık aktivasyonu ve tedaviye yanıtla körele değildir", "RF normal populasyonda %5-10 oranında pozitif olabilir", "En sık görülen göz tutulumu kuru gözdür"]},
+        {"q": "Bel ağrısı nedenleri açısından aşağıdakilerden hangisi doğrudur?", "a": ["disk hernisasyonu tüm bel ağrılarında % 4 lük kısmı oluşturur", "konjenital anomaliler bel ağrısının en sık nedenlerindendir.", "non mekanik bel ağrılarının en sık nedeni Ankilozan spondilittir", "spinal stenoz genç populasyonda sık görülür", "bel ağrısının en sık nedeni statik iş aktiviteleridir"]},
+        {"q": "Aşağıdaki egzersizlerden hangisi akut bel ağrılı bir hastada erken dönemde önerilebilir?", "a": ["Ekstansiyon egzersizleri", "Köprü kurma egzersizleri", "Hamstring germe egzersizleri", "Fleksiyon egzersizleri", "Williams egzersizleri"]},
+        {"q": "Aşağıdakilerden hangisi romatoid artrite ilerleyici hastalığın aday belirteçlerinden değildir?", "a": ["İleri yaş", "Kadın cinsiyet", "Sigara kullanımı", "El eklem tutulumu", "Yüksek sayıda şiş ve hassas eklem sayısı"]},
+        {"q": "Aşağıdaki periferik sinirlerden hangisinin tuzaklanması yalnız motor güçsüzlüğe neden olabilir?", "a": ["Posterior interosseöz sinir", "Femoral sinir", "Tibial sinir", "Peroneal sinir", "Siyatik sinir"]},
+        {"q": "Aşağıdakilerden hangileri fizik tedavi ve rehabilitasyonda kullanılan derin ısıtıcı tedavilerdendir? I.Parafin II.Ultrason III.İnfraruj IV.Mikrodalga Diatermi", "a": ["II, IV", "I, IV", "I, III", "II, III", "I, II"]},
+        {"q": "Araç içi trafik kazası nedeniyle T11 seviyesinde vertebral kırık ve spinal kord yaralanması gelişen bir hastada aşağıdaki komplikasyonlardan hangisinin görülmesi beklenmez?", "a": ["Otonomik disrefleksi", "Bası yarası", "Spastisite", "Nöropatik ağrı", "Nörojen mesane"]},
+        {"q": "Dört yıl önce sağ MCA infarktı nedeniyle kuvvet kaybı gelişen immobil hastada aşağıdaki klinik durumlardan hangisi beklenmez?", "a": ["Parapleji", "Dirsek fleksörlerinde spastisite", "Ayak bileğinde kontraktür", "Omuz subluksasyonu", "Osteoporoz"]},
+        {"q": "İnmeli hastaların akut ve kronik dönemlerinde uygulanan rehabilitasyon prensipleri ile ilgili aşağıdakilerden hangisi yanlıştır?", "a": ["Akut dönemde uygulanan daimi üriner katater, inkontinansı olan hastalarda kronik dönemde de kullanılmaya devam edilir.", "Akut dönemde erken mobilizasyon hedeflenir.", "Yürüyüş bozuklukları için ayak-ayak bileği ortezi kullanılabilir.", "Derin solunum ve öksürme egzersizleri verilebilir.", "Kronik dönemde; eklem hareket açıklığı, güçlendirme, denge-koordinasyon egzersizleri ve aerobik egzersizler önerilir."]},
+        {"q": "62 yaşında kadın hasta, boyun ve kollarda ağrı şikayetiyle başvurdu. Ağrılarının 1 yıldır devam ettiğini, kollarının ve ellerinin güçsüzleştiğini, boynunda tutukluk hissettiğini belirtiyor. Son 1 aydır yürümekte de zorlanıyormuş. Muayenesinde baş-boyun hareketleri ağrılı ve hafif kısıtlı, el kasları atrofik, derin tendon refleksleri artmış bulundu. (Seçenekler yok) 45 yaşında erkek hasta, son 3 aydır devam eden ve giderek artan omuz ağrısı şikayeti var. Travma öyküsü tariflemiyor. Omuz ağrısının giderek arttığını, ağrı kesici ile artık rahatlamadığını ifade ediyor. Özgeçmiş: 3 yıldır Hipertansiyon, 12 yıldır DM ile takipli. Fizik muayene: Omuz EHA: Her yönde aktif ve pasif kısıtlılık var, dış rotasyon ve abduksiyonda ağrı daha belirgin. Eklemde ısı artışı-şişlik saptanmadı. Bu hastada en olası tanınız nedir?", "a": ["Adeziv kapsülit", "Subakromiyal sıkışma sendromu", "Akromiyoklaviküler artrit", "Supraspinatus tendiniti", "Kalsifik tendinit"]},
+        {"q": "55 yaşında obez, kadın hasta, sağ uyluk ve bacakta ağrı tarifliyor. Oturduğu yerden kalkarken, uzun mesafe yürüdüğünde ve merdiven inip çıkmakla ağrısı şiddetleniyormuş. Muayenesinde; sağda antajlik yürüyüşü var, sağ kalça eklem hareketlerinde fleksiyon ve iç rotasyonda kasıkta ciddi ağrı hissediyor ve hafif kısıtlılık var. Laboratuvar tetkiklerinde Sedimentasyon 27mm/sa, CRP 1 mg/L, WBC 7000µL. Aşağıdakilerden hangisi bu hastanın tedavisinde uygun olmayacaktır?", "a": ["Bir ay süreli mutlak yatak istirahati", "2gr/gün Parasetamol", "Diklofenak sodyum", "Kilo verme önerisi", "Kalça kuşağı kuvvetlendirme"]},
+        {"q": "45 yaşında erkek hasta, egzersiz amaçlı 30 dakikalık koşu sonrası sağ ayak ve baldır arkasında ağrı şikayeti başlamış. Ağrısı 2 gündür devam ediyor ve gittikçe kötüleşiyormuş. Basmakla şiddetleniyormuş ve topuk arka kısmında ağrıyla birlikte şişlik başlamış. Fizik muayenesinde sağ topuk posteriorunda şişlik, hafif kızarıklık, ısı artışı ve baldır kaslarında palpasyonda hassasiyet var. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Aşil tendiniti", "Morton nöroma", "Ankilozan spondilit", "Pes planus", "Plantar fasiit"]},
+        {"q": "Acil servise 20 aylık kaza sonucu düştüğü belirtilerek getirilen, minör kafa travmalı bir childda, aşağıdakilerden hangisi çocuk istismarına yönelik en az kuşku uyandırır?", "a": ["Bulantı, kusma", "Retinal kanama", "<2 yaş altındaki bir çocukta bilateral kronik subdural hematom", "İntrakranial yaralanma ile birlikte olan veya birden fazla sayıda kafatası kırıkları", "Dışarıdan fazlaca travma belirtisi olmayan ancak önemli derecede nörolojik hasarı olması"]},
+        {"q": "Kafa travmalı hastalarda, aşağıdakilerden hangisi yüksek riskli intrakranial yaralanma bulgularından değildir?", "a": ["Darbe bölgesinde scalpteki şişlikte artış olması", "Alkole, ilaçlara, metabolik anomalilere, postiktal duruma vb. bağlı olmayan bilinç düzeyinde azalma olması", "Fokal nörolojik defisit", "Penetran kafatası yaralanması ya da çökme kırığı olması", "Bilinç düzeyinin gerilemesi"]},
+        {"q": "Aşağıdakilerden hangisi aksi ispat edilene kadar spinal kord yaralanması olduğu varsayılarak tedavi edilmesine gerek yoktur?", "a": ["Hafif travmalı, sol ön kol ekstansör yüzde laserasyonu olan, GKP:15, motor ve duyu muayenesi normal, ağrı ve/veya hassasiyet şikayeti olmayan hastalar", "Yüksek enerjili, önemli bir travmaya maruz kalan hastalar", "Bilinç kaybı olan travma hastaları", "Bel ve/veya boyunda ağrı veya hassasiyeti olan hafif travmalı hastalar", "Hafif travmalı, GKP:15, bir eksremitede hissizlik, karıncalanma, güçsüzlük şikayeti olan hastalar"]},
+        {"q": "Aşağıdakilerden hangisinin omurga stabilizasyonunda rolu en azdır?", "a": ["Lig. Flavum", "Faset eklemler", "İntervertebral disk", "ALL", "PLL"]},
+        {"q": "Diz ekstansiyonunda yerçekimini yenebilen bir hastanın kas kuvveti kaçtır?", "a": ["3", "1", "2", "4", "5"]},
+        {"q": "AŞAĞIDA VERİLEN BİLGİLERDEN HANGİLERİ NÖRAL TÜP DEFEKTİ AÇISINDA BİLİNEN RİSK FAKTÖRLERİ ARASINDA DEĞİLDİR?", "a": ["FOLAT AGONİSTLERİ", "FOLİK ASİT EKSİKLİĞİ", "İLK TRİMESTERDE YÜKSEK ISI VE SICAKLIK MARUZİYETİ", "VALPOROİK ASİT", "OBEZİTE"]},
+        {"q": "SSS TÜMÖRLERİ İLE İLGİLİ VERİLEN BİLGİLERDEN HANGİSİ YANLIŞTIR?", "a": ["SSS TÜMÖRLERİNİN BAŞKA ORGAN METASTAZLARI SIK GÖRÜLÜR.", "CERRAHİ REZEKSİYON SINIRLI OLABİLİR.", "KLİNİK GENEL SEMPTOMLAR DIŞINDA YERLEŞİM İLE İLGİLİDİR.", "BENİNG-MALİGN AYRIMI DAHA AZ BELİRGİNDİR.", "METASTAZLAR EN SIK SSS TÜMÖRLERİDİR."]},
+        {"q": "Aşağıdakilerden hangisi subaraknoid kanama sonrası mortalitenin en önemli nedenidir?", "a": ["Tekrarlayan kanama", "Hidrosefali", "Ateş", "Nöbet", "Hipertansiyon"]},
+        {"q": "Aşağıdaki durumlardan hangisinde lumboperitoneal shunt takılması kontrendikedir?", "a": ["Non kominikan hidrosefali", "Kominikan hidrosefali", "İntrakranial Hipertansiyon", "Pseudo tumor serebri", "Normal Basınçlı Hidrosefali"]},
+        {"q": "Omurgayı tutan aşağıdaki tümörlerden hangisi radyosensitifdir?", "a": ["Multiple miyeloma", "Tiroid", "Malign melanoma", "Renal cell karsinoma", "Osteokondrom"]}
+        ]
+    },
+    {
+        title: "IX. Sınav Grubu (Soru 60 - 92)",
+        desc: "32 soru",
+        questions: [
+        {"q": "İnme hastalarının akut ve kronik dönemlerinde uygulanan rehabilitasyon prensipleri ile ilgili aşağıdakilerden hangisi yanlıştır?", "a": ["Akut dönemde uygulanan daimi ürinerkatater, inkontinansı olan hastalarda kronik dönemde de kullanılmaya devam edilir.", "Akut dönemde erken mobilizasyon hedeflenir.", "Yürüyüş bozuklukları için ayak-ayak bileği ortezi kullanılabilir.", "Derin solunum ve öksürme egzersizleri verilebilir.", "Kronik dönemde; eklem hareket açıklığı, güçlendirme, denge-koordinasyon egzersizleri ve aerobik egzersizler önerilir."]},
+        {"q": "Tetraplejik bir hastanın yatakta uygun pozisyonlanmadığı ve uzun süre sırt üstü pozisyonda yatırıldığı görülüyor. Bu hastada en olası bası yarası gelişim lokalizasyonu neresidir?", "a": ["Sakrum", "Topuk", "Oksiput", "Büyük trokanter", "Skapula"]},
+        {"q": "El parmaklarında ekstansiyon kaybı aşağıdaki periferik sinirlerden hangisinin tuzaklanması sonucu ortaya çıkabilir?", "a": ["Radial sinir", "Median sinir", "Muskulokütanöz sinir", "Anteriorinterosseöz sinir", "Ulnar sinir"]},
+        {"q": "Osteoporoz hastalarında aşağıdaki bölgelerden hangisi kırık açısından en az risklidir?", "a": ["Distaltibia", "Distalradius", "Femur başı", "Torakalvertebra", "Lombervertebra"]},
+        {"q": "Aşağıdakilerden hangisi omuz patolojilerini değerlendirilmesinde kullanılan bir testtir", "a": ["Hawkins testi", "mc murray testi", "apley testi", "schober testi", "düz bacak kaldırma testi"]},
+        {"q": "RA ile ilgili hangi ifade yanlıştır.", "a": ["Temel tedaviye başlamak için erezyon gelişimi beklenmelidir.", "Erezyon gelişim X-ray den önce USG ile tespit edilebilir.", "Subkutanoduller hastalık aktivasyonu og tedaviye yanıtla körele değildir", "RF normal populasyonda %5-10 oranında pozitif olabilir", "En sık görülen göz tutulumu kuru gözdür"]},
+        {"q": "Bel ağrısı nedenleri açısından aşağıdakilerden hangisi doğrudur?", "a": ["disk hernisasyonu tüm bel ağrılarında % 4 lük kısmı oluşturur", "konjenitalanomaliler bel ağrısının en sık nedenlerindendir.", "non mekanik bel ağrılarının en sık nedeni Ankilozanspondilittir", "spinalstenoz genç populasyonda sık görülür", "bel ağrısının en sık nedeni statik iş aktiviteleridir"]},
+        {"q": "Aşağıdaki egzersizlerden hangisi akut bel ağrılı bir hastada erken dönemde önerilebilir?", "a": ["Ekstansiyon egzersizleri", "Köprü kurma egzersizleri", "Hamstring germe egzersizleri", "Fleksiyon egzersizleri", "Williams egzersizleri"]},
+        {"q": "Aşağıdakilerden hangisi romatoidartrite ilerleyici hastalığın aday belirteçlerinden değildir?", "a": ["İleri yaş", "Kadın cinsiyet", "Sigara kullanımı", "El eklem tutulumu", "Yükseksayıda şiş ve hassas eklem sayısı"]},
+        {"q": "45 yaşında erkek hasta, egzersiz amaçlı 30 dakikalık koşu sonrası sağ ayak ve baldır arkasında ağrı şikayeti başlamış. Ağrısı 2 gündür devam ediyor ve gittikçe kötüleşiyormuş. Basmakla şiddetleniyormuş ve topuk arka kısmında ağrıyla birlikte şişlik başlamış. Fizik muayenesinde sağ topuk posteriorunda şişlik, hafif kızarıklık, ısı artışı ve baldır kaslarında palpasyonda hassasiyet var. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Aşiltenidiniti", "Mortonnöroma", "Ankilozanspondilit", "Pes planus", "Plantarfasiit"]},
+        {"q": "Aşağıdakilerden hangisi osteoartritte sık görülen radyolojik bulgulardan değildir?", "a": ["Genel dansite azalması", "Subkondral kemik sklerozu", "Osteofit", "Eklem aralığında daralma", "Subkondral kist oluşumları"]},
+        {"q": "Subakromiyal sıkışma sendromunda en sık etkilenen kas hangisidir?", "a": ["Supraspinatus", "İnfraspinatus", "Teres Minör", "Teres majör", "Subskapularis"]},
+        {"q": "64 yaşında kadın hasta, 3 aydır devam eden, son 1 haftadır şiddetlenen boyun ağrısı varmış. Ağrısı kollara yayılıyor ancak güçsüzlük hissetmiyormuş. Fizik muayenesinde baş-boyun hareketleri özellikle ekstansiyon ve sağ lateralfleksiyonda ağrılı, kuvvet defisiti yok, refleksler normoaktif. Bu hastada ilk planda hangi tetkiki isterdiniz?", "a": ["2 yönlü direkt boyun grafisi", "Tetkik istemeye gerek yoktur", "Servikal MR", "Sedimentasyon-CRP-Hemogram", "Ürik asit"]},
+        {"q": "17 yaşında erkek hasta göğüs sağ yanında son 2 gündür devam eden batıcı tarzda ağrı yakınması ile başvuruyor. Altı ay önceye 3 gün kadar süren benzer ağrı ve ateş yakınması olmuş. Yeni bakılan tetkiklerinde akut faz yanıtı yüksek. Bu hasta için aşağıdaki tanılardan hangisi ilk olarak araştırılmalıdır?", "a": ["Ailesel akdeniz ateşi", "Romatoidartrit", "Behçet hastalığı", "Reaktif artrit", "Sarkoidoz"]},
+        {"q": "Aşağıdakilerden hangisi pozitif akut faz reaktanı değildir?", "a": ["Transferrin", "Seruplazmin", "Sedimentasyon", "Fibrinojen", "Ferritin"]},
+        {"q": "Aşağıdakilerden hangisi vaskülitler ile ilgili doğru değildir?", "a": ["Mikroskopikpolianjiitisnekrotizanglomerülonefrit ve pulmonerkapillarit yaygın olduğu granülomatöz bir vaskülittir.", "Dev hücreli (temporal) arterit genellikle 50 yaş üstü hastalarda ve sıklıkla da Polimiyaljia Romatika ile birliktedir.", "Anti-glomerüler bazal membran (Goodpasturesendromu) hastalığı pulmonerhemoraji ile birlikte hızlı ilerleyici glomerulonefrit gibi ciddi klinik bulgulara neden olabilir.", "Kriyoglobülinemikvaskülitte tipik olarak cilt, glomerüller og periferik sinirler tutulur.", "Henoch-Schönleinpurpurasında (Ig A vasklit) tipik olarak cilt, gastrointestinal sistem ve glomerüller tutulur."]},
+        {"q": "Aşağıdaki ilaçlardan hangisi sentetik DMARD değildir?", "a": ["Tosilizumab", "Leflunomide", "Metotreksat", "Sulfasalazin", "Hidroksiklorokin"]},
+        {"q": "Aşağıdakilerden hangisi gut hastalığı tedavisinde ürik asit yapımını azaltarak etki gösterir?", "a": ["Febuksostat", "Probenesid", "Benzbromaron", "Peglotikaz", "Rilonasept"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "Spondiloartropatiler için aşağıdakilerden hangisi doğrudur?", "a": ["Reaktif artritte görülen sindesmofitler kalın ve non-marjinaldir.", "Psöriyatikartrit görülme sıklığı kadınlarda erkeklere göre 3 kat daha sıktır.", "Enteropatikartritli hastaların %80 inde HLA-B27 pozitiftir.", "Konjuktivit; ankilozanspondilitte reaktif artrite göre daha sık izlenir.", "Daktilit ; reaktifartritte enteropatikartrite göre daha nadir izlenir."]},
+        {"q": "62 yaşında bayan hasta sağ dizde 10 gündür devam eden şişlik ve ağrı şikayeti ile geliyor. F.M sağ dizde effüzyon ve ısı artışı mevcut. eklem hareket açıklığı kısıtlanmış laboratuvar incelemesinde Akut faz yanıtını yüksek diğer parametreler normal sınırlarda. çekilen grafisi görselde görülen hastanın olası ön tanısı nedir?", "a": ["pseudogut", "septik artrit", "osteoartrit", "gut", "sinovyalkondromatozis"]},
+        {"q": "Vertebraların çevresindeki kas ve yumuşak dokunun uzatılması ve eklem aralıklarının arttırılması amacıyla boyun ve bel bölgelerine uygulanan çekme işlemine ne ad verilir?", "a": ["Traksiyon", "Manipulasyon", "Balneoterapi", "Perküsyon", "Vibrasyon"]},
+        {"q": "Aşağıdaki anatomik yapıların sayıları hakkında hangisi doğrudur? foramenmonro (FM), Aqiaductussylvi (AS)", "a": ["İki FM, Bir AS", "Bir FM, İki AS", "İki FM, İki AS", "Bir FM, Bir AS", "Üç FM, İki AS"]},
+        {"q": "Metastatikekstraduralspinal tümörler arasında en sık görülen aşağıdakilerden hangisidir?", "a": ["Akciğer", "Meme", "Prostat", "Böbrek", "Tiroid"]},
+        {"q": "Karotisbifurkasyon anevrizması rüptüre olan bir hastada kanama sonrası 5.günde sağ kolda güçsüzlük geliştiğinde, bunun en olası sebebi nedir?", "a": ["Vazospazm", "Nöbet", "Hiponatremi", "Hipernatremi", "İntraserebral kanama"]},
+        {"q": "AŞAĞIDA VERİLEN BİLGİLERDEN HANGİLERİ NÖRAL TÜP DEFEKTİ AÇISINDA BİLİNEN RİSK FAKTÖRLERİ ARASINDA DEĞİLDİR?", "a": ["FOLAT AGONİSTLERİ", "FOLİK ASİT EKSİKLİĞİ", "İLK TRİMESTERDE YÜKSEK ISI VE SICAKLIK MARUZİYETİ", "VALPOROİK ASİT", "OBEZİTE"]},
+        {"q": "SSS TÜMÖRLERİ İLE İLGİLİ VERİLEN BİLGİLERDEN HANGİSİ YANLIŞTIR?", "a": ["SSS TÜMÖRLERİNİN BAŞKA ORGAN METASTAZLARI SIK GÖRÜLÜR.", "CERRAHİ REZEKSİYON SINIRLI OLABİLİR.", "KLİNİK GENEL SEMPTOMLAR DIŞINDA YERLEŞİM İLE İLGİLİDİR.", "BENİNG-MALİGN AYRIMI DAHA AZ BELİRGİNDİR.", "METASTAZLAR EN SIK SSS TÜMÖRLERİDİR."]},
+        {"q": "Normal yetişkin omurgasında aşağıdakilerden hangisinin su içeriği daha fazladır?", "a": ["nükleuspulpozus", "anulusfibrozus", "ALL(anteriorlongitudinalligament)", "PLL (posteriorlongitudinalligament)", "Endplate"]},
+        {"q": "L4-5 farlateral disk hernisi hangi köke bası yaparak klinik bulgu verir?", "a": ["L4 kökü", "L5 kökü", "S1 kökü", "L3 kökü", "L2 kökü"]},
+        {"q": "Aşağıdakilerden hangisi aksi ispat edilene kadar spinalkord yaralanması olduğu varsayılarak tedavi edilmesine gerek yoktur?", "a": ["Hafif travmalı, sol ön kol ekstansör yüzde laserasyonu olan, GKP:15, motor ve duyu muayenesi normal, ağrı ve/veya hassasiyet şikayeti olmayan hastalar", "Yüksek enerjili, önemli bir travmaya maruz kalan hastalar", "Bilinç kaybı olan travma hastaları", "Bel ve/veya boyunda ağrı veya hassasiyeti olan hafif travmalı hastalar", "Hafif travmalı, GKP:15, bir eksremitede hissizlik, karıncalanma, güçsüzlük şikayeti olan hastalar"]},
+        {"q": "Araç dışı trafik kazası öyküsü ile getirilen, IR+/+, sol>sağ anisokorik, gözler kapalı ve ağrılı uyaranla açmayan, emirleri yerine getirmeyen ancak ağrıyı solda lokalize eden fakat alt extremite de motor yanıtı olmayan, konuşmayan ancak ağrılı uyaranla anlamsız sesler çıkartan, spontan solunumu bulunan 42 yaş erkek yaralının Glasgow Koma Skoru kaçtır?", "a": ["GKS = E1M5V2 = 8", "GKS = E1M2V2 = 5", "GKS = E1M5V1 = 7", "GKS = E2M4V2 = 8", "GKS = E1M4V2 = 7"]},
+        {"q": "Balıklama denize atlama sonrası hastaneye getirilen, C6-7 düzeyinde ileri anteriordislokasyon ve bu seviyesinin altında tam medüller kesi bulguları saptanan hastada aşağıdakilerden hangisi görülmez?", "a": ["Göbek seviyesinden itibaren tam duyu kaybı", "Alt ekstremitelerde refleks kaybı", "Korunmuş omuz hareketleri", "Anal sfinktertonusunun kaybolması", "Ürinersfinkter kontrol kusuru"]}
+        ]
+    },
+    {
+        title: "X. Sınav Grubu (Soru 60 - 91)",
+        desc: "31 soru",
+        questions: [
+        {"q": "I) Sakroiliit II) Patellartendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden Hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "Hemoptizi, dispne ile başvuran 63 yaşında kadın hasta, tedaviye rağmen son üç aydır giderek kötüleşen sinüzit olduğunu bildirmektedir. Laboratuvar tetkiklerinde spot idrarda proteinüri (>0,5mg/dl) ve kan biyokimyasında yüksek kreatinin 1,6 mg/dL dikkat çekmektedir. Bu bulgulara ek olarak, yüksek anti-proteinaz-3 antikor düzeyleri saptanan hastada öncelikle hangi tanı düşünülmelidir?", "a": ["Granülomatozispolianjiitis (Wegenergranülomatozis)", "Poliarteritisnodoza (PAN)", "Anti-glomerüler bazal membran (Goodpasturesendromu) hastalığı", "Henoch-Schönleinpurpurası (IgA vaskülit)", "Sistemik lupuseritamatosis (SLE)"]},
+        {"q": "Romatoidartrit için aşağıdaki laboratuvar testlerinden hangisi daha spesifiktir?", "a": ["Anti-sikliksitrülinepeptit antikor (ACPA)", "Yüksek akut faz reaktanı", "Trombositoz", "Romatoid faktör", "Kronik hastalık anemisi"]},
+        {"q": "Spondiloartropatiler için aşağıdakilerden hangisi doğrudur?", "a": ["Reaktif artritte görülen sindesmofitler kalın ve non-marjinaldir.", "Psöriyatikartrit görülme sıklığı alkali erkeklere göre 3 kat daha sıktır.", "Enteropatikartritli hastaların %80 inde HLA-B27 pozitiftir.", "Konjuktivit; ankilozanspondilitte reaktif artrite göre daha sık izlenir.", "Daktilit ; reaktifartritte enteropatikartrite göre daha nadir izlenir."]},
+        {"q": "Aşağıdakilerden hangisi gut hastalığı tedavisinde ürik asit yapımını azaltarak etki gösterir?", "a": ["Febuksostat", "Probenesid", "Benzbromaron", "Peglotikaz", "Rilonasept"]},
+        {"q": "Aşağıdakilerden hangisi ankilozanspondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkanéal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "Aşağıdakilerden hangisi ulnar sinir tuzak nöropatilerinde görülmez?", "a": ["Düşük el", "5. Parmakta his kaybı", "Pençe el", "Elin intrensek kaslarında güçsüzlük", "Elin medial tarafında his kaybı"]},
+        {"q": "36 yaşında erkek hasta, 5 ay önce araç içi trafik kazası sonrası lombervertebra kırığı gelişmiş. Hasta paraplejik. Sol bacakta şişlik olması üzerine başvuruldu. Muayenesinde sol uyluk ve bacak sağ tarafa göre şiş görünümde, ölçümle iki bacak arasında 2 cm çap farkı var, sol baldırda hafif ısı artışı ve kızarıklık mevcut. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Derin ventrombozu", "Otonomikdisrefleksi", "Heterotopikossifikasyon", "Aşiltendiniti", "Dekübitis ülseri"]},
+        {"q": "45 yaşında erkek hasta, egzersiz amaçlı 30 dakikalık koşu sonrası sağ ayak ve baldır arkasında ağrı şikayeti başlamış. Ağrısı 2 gündür devam ediyor ve gittikçe kötüleşiyormuş. Basmakla şiddetleniyormuş ve topuk arka kısmında ağrıyla birlikte şişlik başlamış. Fizik muayenesinde sağ topuk posteriorunda şişlik, hafif kızarıklık, ısı artışı ve baldır kaslarında palpasyonda hassasiyet var. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Aşiltendiniti", "Mortonnöroma", "Ankilozanspondilit", "Pes planus", "Plantarfasiit"]},
+        {"q": "55 yaşında obez, kadın hasta, sağ dizde ağrı tarifliyor. Oturduğu yerden kalktığında ilk 5-10 dakika kadar dizinde tutukluk olduğunu, zamanla açıldığını söylüyor. Ağrısı uzun mesafe yürüdüğünde ve merdiven inip çıkmakla şiddetleniyor. Daha önce ağrı kesici veya şişlik yok, fleksiyon açıklığı tam ancak ağrılı, diz medialinde palpasyonda ağrı mevcut. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Gonartroz", "Romatoidartrit", "Septik artrit", "Osteoporotik kırık", "Patellartendinit"]},
+        {"q": "58 yaşında erkek hasta sol omuz ağrısıyla kliniğimize başvurdu. Hastanın 3 aydır devam eden omuz ağrısı var, 1 aydır kolunu kaldıramıyormuş. Daha önce ağrı kesici kullanmış ancak artık fayda görmüyormuş. Bilinen travma öyküsü yok. Özgeçmiş: Tip-2 Diyabet, insülin kullanıyor, Hipertansiyon-2'li ilaç kullanıyor. Muayenesinde: Sol omuz hareketleri ağrılı, abduksiyon ve dış rotasyon aktif ve pasif kısıtlı. Eklemde ısı artışı yok. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Adezivkapsülit", "Kalsifiktendinit", "Subakromiyal sıkışma sendromu", "Bisipitaltendinit", "Supraspinatustendiniti"]},
+        {"q": "64 yaşında kadın hasta, 3 aydır devam eden, son 1 haftadır şiddetlenen boyun ağrısı varmış. Ağrısı kollara yayılıyor ancak güçsüzlük hissetmiyormuş. Fizik muayenesinde baş-boyun hareketleri özellikle ekstansiyon ve sağ lateralfleksiyonda ağrılı, kuvvet defisiti yok, refleksler normoaktif. Bu hastada ilk planda hangi tetkiki isterdiniz?", "a": ["2 yönlü direkt boyun grafisi", "Tetkik istemeye gerek yoktur", "Servikal MR", "Sedimentasyon-CRP-Hemogram", "Ürik asit"]},
+        {"q": "Reynoldfenomenin en sık görüldüğü hastalık aşağıdakilerden hangidir?", "a": ["skleroderma", "SLE", "polimyozit", "romatoidartrit", "nodülerosteoartrit"]},
+        {"q": "Aşağıdakilerden hangisi Erken RomatoidArtrit sınıflama kriterinde puanlama içinde dahil edilmemiştir?", "a": ["Periartikular osteoporoz ve eklem erozyonu", "ESH", "Anti CCP", "CRP", "6 haftanın üzerinde semptomların olması"]},
+        {"q": "Aşağıdaki ilaçlardan hangisi RA tedavisinde kullanılmaz?", "a": ["allopurinol", "Adalimumab", "Etanercept", "Nonsteroidantiinflamatuvar ilaçlar", "sulfasalazin"]},
+        {"q": "Apley testi aşağıdaki hastalıkların hangisinin tanısında kullanılır?", "a": ["Meniskus patolojileri", "Omuz eklem hareketlerini değerlendirmek için", "Lomber disk prolapsusu", "Karpal tünel sendromunda", "Subakromiyon sıkışma sendromlarında"]},
+        {"q": "Subakromial sıkışma sendromu tanısında kullanılan test aşağıdakilerden hangisidir?", "a": ["Neer testi", "Finkelstein testi", "Phalen testi", "Watson testi", "Tinel testi"]},
+        {"q": "Bel ağrıları ile ilgili hangi ifade yanlıştır?", "a": ["En fazla fıtık gelişen seviye L3-4 seviyesidir", "En sık sebep mekanik patolojilerdir", "ileri yaşlarda en sık sebep dejeneratifosteoartrittir", "İnflamatuar bel ağrısı istirahatte belirginleşir", "Maligniteye bağlı ağrılarda genelde metastaz sonrası gelişir"]},
+        {"q": "Bel ağrısi tedavisi için hangisi doğrudur?", "a": ["Erken dönemde sadece izometrik egzersizler yapılmalıdır", "Karın kaslarının güçlendirilmesi erken dönemde yapılmalıdır.", "Korseler subakut dönemde 4 haftayı geçmemek üzere uygulanır", "Korsleme döneminde egzersizler yapılmamalıdır", "Subakut dönemde kas gevşeticiler kullanılmalıdır"]},
+        {"q": "Aşağıdaki romatizmal hastalıkların hangisinde genetik yatkınlık en fazladır ?", "a": ["Ankilozanspondilit", "Skleroderma", "SLE", "Reaktif artrit", "RomatoidArtrit"]},
+        {"q": "Aşağıdakilerden hangisi cilt lezyonu hastalık çiftlerinden hangisi yanlıştır?", "a": ["Heliotrop döküntü-Polimiyozit", "Keratodermablanerjorika-Reaktif artrit", "Diskoid lezyonlar -Diskoidlupus", "Akneiform lezyonlar - Behçet hastalığı", "Arthritismutulans- psoriatikartrit"]},
+        {"q": "AŞAĞIDA VERİLEN BİLGİLERDEN HANGİLERİ NÖRAL TÜP DEFEKTİ AÇISINDA BİLİNEN RİSK FAKTÖRLERİ ARASINDA DEĞİLDİR?", "a": ["FOLAT AGONİSTLERİ", "FOLİK ASİT EKSİKLİĞİ", "İLK TRİMESTERDE YÜKSEK ISI VE SICAKLIK MARUZİYETİ", "VALPOROİK ASİT", "OBEZİTE"]},
+        {"q": "NÖROJENİK VE VASKÜLER KLADİKASYO AYIRICI TANISINDA AŞAĞIDA VERİLEN BİLGİLERDEN HANGİSİ YANLIŞTIR?", "a": ["VASKÜLER KLADİKASYODA AĞRI POSTÜRE BAĞLIDIR. FLEKSİYON POSTÜRDE ŞİKAYETLER AZALIR.", "NÖROJENİK KLADİKASYONDA AĞRI DAHA ÇOK DERMATOMAL OLUR.", "AYAK ELEVE EDİLİNCE VASKÜLER PATOLOJİDE AYAK SOLUKLAŞIR.", "NABIZ DEĞİŞİKLİKLERİ VASKÜLER PATOLOJİLERDE OLUR.", "NÖROJENİK KLADİKASYODA ŞİKAYETLER SIKLIKLA İLERLEYİCİDİR."]},
+        {"q": "Kafa travmalı hastalarda, aşağıdakilerden hangisi yüksek riskli intrakranial yaralanma bulgularından değildir?", "a": ["Darbe bölgesinde scalpteki şişlikte artış olması", "Alkole, ilaçlara, metabolik anomalilere, postiktal duruma vb. bağlı olmayan bilinç düzeyinde azalma olması", "Fokal nörolojik defisit", "Penetran kafatası yaralanması ya da çökme kırığı olması", "Bilinç düzeyinin gerilemesi"]},
+        {"q": "Balıklama denize atlama sonrası hastaneye getirilen, C6-7 düzeyinde ileri anteriordislokasyon ve seviyesinin altında tam medüller kesi bulguları saptanan hastada aşağıdakilerden hangisi görülmez?", "a": ["Göbek seviyesinden itibaren tam duyu kaybı", "Alt ekstremitelerde refleks kaybı", "Korunmuş omuz hareketleri", "Anal sfinktertonusunun kaybolması", "Ürinersfinkter kontrol kusuru"]},
+        {"q": "Aşağıdakilerden hangisi aksi ispat edilene kadar spinalkord yaralanması olduğu varsayılarak tedavi edilmesine gerek yoktur?", "a": ["Hafif travmalı, sol ön kol ekstansör yüzde laserasyonu olan, GKP:15, motor ve duyu muayenesi normal, ağrı ve/veya hassasiyet şikayeti olmayan hastalar", "Yüksek enerjili, önemli bir travmaya maruz kalan hastalar", "Bilinç kaybı olan travma hastaları", "Bel ve/veya boyunda ağrı veya hassasiyeti olan hafif travmalı hastalar", "Hafif travmalı, GKP:15, bir eksremitede hissizlik, karıncalanma, güçsüzlük şikayeti olan hastalar"]},
+        {"q": "Aşağıdakilerden hangisinin omurga stabilizasyonunda rolu en azdır?", "a": ["Lig. Flavum", "Faset eklemler", "İntervertebral disk", "ALL", "PLL"]},
+        {"q": "Aşağıdakilerden hangisi Kafaiçi Basınç Artışı(KİBAS)'nın genel klinik özelliklerinden biri değildir?", "a": ["Vertigo", "Papil ödem", "Bilinç bozukluğu", "Baş ağrısı", "Bulantı/kusma"]},
+        {"q": "Aşağıdakilerden hangisi subaraknoid kanama sonrası mortalitenin en önemli nedenidir?", "a": ["Tekrarlayan kanama", "Hidrosefali", "Ateş", "Nöbet", "Hipertansiyon"]},
+        {"q": "Aşağıdaki bulgulardan hangisi \"Normal Basınçlı Hidrosefali \" de görülebilen durumlardan değildir?", "a": ["Papil ödemi", "Yürüme bozukluğu", "Unutkanlık", "İdrar İnkontinansı", "Normal sınırlarda lomber ponksiyon basıncı"]},
+        {"q": "Uncalherniasyonda hangi kafa çifti etkilenir?", "a": ["III.", "IV.", "V.", "VI.", "II."]}
+        ]
+    },
+    {
+        title: "XI. Sınav Grubu (Soru 63 - 87)",
+        desc: "25 soru",
+        questions: [
+        {"q": "Aşağıdakilerden hangisi limitli sistemik skleroz için diffüz tutulumlu sistemik skleroza göre doğrudur?", "a": ["Şiddetli pulmoner hipertansiyon daha yaygındır.", "Anti Scl-70 sıklıkla pozitifdir", "Pulmoner fibrosiz daha yaygındır", "tendon sürtünme sesi yaygındır", "renal kriz sıklıkla görülür."]},
+        {"q": "Aşağıdakilerden hangisi bel ağrısına yaklaşımda kırmızı bayraklar arasında yer almaz", "a": ["Spondilolistesis", "kauda ekunia sendromu", "Tbc enfeksiyonu", "renal CA bağlı metastaz", "Kırık"]},
+        {"q": "Aşağıdakilerden hangisi cilt lezyonu hastalık çiftlerinden hangisi yanlıştır?", "a": ["Heliotrop döküntü-Polimiyozit", "Keratoderma blanerjorika-Reaktif artrit", "Diskoid lezyonlar -Diskoid lupus", "Akneiform lezyonlar - Behçet hastalığı", "Arthritis mutulans- psoriatik artrit"]},
+        {"q": "Aşağıdakilerden hangisi CREST sendromunun klinik ve laboratuar bulgularından değildir?", "a": ["Syndaktili", "Kalsinosis", "Reynaud Fenomeni", "Özafagiyal dismotilite", "Telenjektazi"]},
+        {"q": "Aşağıdaki enzimlerden hangisi Romatoid artrit etyopatogenezinde önemli bir rol oynar?", "a": ["peptidil arginin deiminaz", "timidilat sentetaz", "karbonik anhidraz", "kollajenaz", "Glutamat dehidrogenaz"]},
+        {"q": "Spinalkord yaralanmaları için aşağıdakilerden hangisi doğrudur?", "a": ["Otonomik disrefleksi T6 ve üzerindeki yaralanmalarda sıklıkla görülür", "Lomber seviyeli yaralanmalarda öksürük refleksi bozulmuştur", "Komplet tetraplejik hastalarda iyileşme inkomplet tetraplejik hastalara göre daha iyidir", "Flask evrede germe ve kuvvetlendirme egzersizlerine hemen başlanmalıdır", "Motor seviye olarak T1 ve altındaki yaralanmalarda tetrapleji tablosu ortaya çıkar"]},
+        {"q": "Subakromiyal sıkışma sendromunda en sık etkilenen kas hangisidir?", "a": ["Supraspinatus", "İnfraspinatus", "Teres Minor", "Teres major", "Subskapularis"]},
+        {"q": "40 yaşında kadın hasta, parmaklarda uyuşma, parmaklarda sızlama şikayeti ile başvurdu. Özellikle geceleri ellerinde uyuşma ile uyanıyor ve ellerini sallama ihtiyacı hissediyormuş. Gündüz elişi yaptığında da şikayetleri artıyormuş. Bu hastada en olası tanınız nedir?", "a": ["Karpal tünel sendromu", "De-quervain tenosinoviti", "Torasik çıkış sendromu", "Kompleks bölgesel ağrı sendromu", "Osteoartrit"]},
+        {"q": "64 yaşında kadın hasta, 3 aydır devam eden, son 1 haftadır şiddetlenen boyun ağrısı varmış. Ağrısı kollara yayılıyor ancak güçsüzlük hissetmiyormuş. Fizik muayenesinde baş-boyun hareketleri özellikle ekstansiyon ve sağ lateral fleksiyonda ağrılı, kuvvet defisiti yok, refleksler normoaktif. Bu hastada ilk planda hangi tetkiki isterdiniz?", "a": ["2 yönlü direkt boyun grafisi", "Tetkik istemeye gerek yoktur", "Servikal MR", "Sedimentasyon-CRP-Hemogram", "Ürik asit"]},
+        {"q": "55 yaşında obez, kadın hasta, sağ dizde ağrı tarifliyor. Oturduğu yerden kalktığında ilk 5-10 dakika kadar dizinde tutukluk olduğunu, zamanla açıldığını söylüyor. Ağrısı uzun mesafe yürüdüğünde ve merdiven inip çıkmakla şiddetleniyor. Muayenesinde sağ dizde, diz medialinde palpasyonda ağrı mevcut. Bu hastada en olası tanı aşağıdakilerden hangisidir?", "a": ["Gonartroz", "Romatoid artrit", "Septik artrit", "Osteoporotik kırık", "Patellar tendinit"]},
+        {"q": "De-Quervain tenosinovitinde etkilenen kas ikilisi aşağıdakilerden hangisidir?", "a": ["Abdüktör pollisis longus-Ekstansör pollisis brevis", "Abdüktör pollisis brevis-Ekstansör pollisis brevis", "Abdüktör pollisis longus-Fleksör pollisis brevis", "Abdüktör pollisis longus-Ekstansör pollisis brevis", "Abdüktör digiti minimi-Ekstansör pollisis brevis"]},
+        {"q": "Vücudunda metal implantı olan bir hastaya aşağıdaki fizik tedavi ajanlarından hangisi uygulanmaz?", "a": ["Kısa dalga diatermi", "UV ışın tedavisi", "TENS", "Diadinami", "İnterferansiyel akım"]},
+        {"q": "I) Sakroiliit II) Patellar tendinit III) Benekli osteoporoz IV) Baker kisti Yukarıdaki patolojilerden Hangileri USG'de izlenebilir?", "a": ["II, IV", "I, II", "II, III", "I, II, III", "I, III, IV"]},
+        {"q": "İnme kliniği için aşağıdakilerden hangisi yanlıştır?", "a": ["Alt ekstremitede fonksiyonel iyileşme üst ekstremiteye göre daha yavaş olur", "Proksimal fonksiyonlar distallere göre daha erken geri döner", "İnme sonrası total paralizinin olduğu döneme flask dönem denir", "Afazi ve görme alanı defisitleri diğer fonksiyonlara göre daha yavaş iyileşir", "En iyi fonksiyonel geri dönüşüm ilk 6 hafta içinde olur"]},
+        {"q": "55 yaşında kadın hasta, son 1 aydır sol kalça ve uylukta ağrı şikayeti var. Ağrısı yürümekle ve sol tarafı üzerine yatmakla artıyormuş. Uyuşma karıncalanma, yanma-üşüme eşlik etmiyor. Muayenesinde sol kalça eklem hareket açıklığı tam, dirençli abdüksiyonda ağrısı var, uyluk yan taraf kasları ve büyük trokanter üzeri palpasyonla hassas. Bu hastada en olası tanınız nedir?", "a": ["Trokanterik bursit", "Meraljia parestetika", "Koksartroz", "Lomber disk hernisi", "Kompleks bölgesel ağrı sendromu"]},
+        {"q": "Aşağıdakilerden hangisi gut hastalığı tedavisinde ürik asit yapımını azaltarak etki gösterir?", "a": ["Febuksostat", "Probenesid", "Benzbromaron", "Peglotikaz", "Rilonasept"]},
+        {"q": "Aşağıdakilerden hangisi ankilozan spondilitte izlenen radyografik bulgulardan değildir?", "a": ["Çıkma kenar lezyonu", "Faset ankilozları", "Kalkaneal erozyon", "Pubis kollarında düzensizlik", "Koksofemoral eklem aralığında daralma"]},
+        {"q": "Kronik tofüslü gut için aşağıdakilerden hangisi yanlıştır?", "a": ["Miyokard, göz gibi visseral yapılarda tofüs oluşumu beklenmez.", "Olekranon bursalar, aşil tendonu og kulak heliksi tofüslerin sık yerleştiği yerlerdendir.", "Tofüs oluşum hızı renal hastalık şiddeti ile ilişkilidir.", "Tofüslerin üzerindeki derinin ülserasyonu halinde dışarı tebeşirimsi bir madde atılabilir.", "Tofüs oluşumu ilk gut artritinden ortalama 10 yıl sonra başlar."]},
+        {"q": "Romatizmal hastalıklara ait klinik bulgular ile bazı spesifik antikorlar arasında ilişki dikkate alındığında aşağıdakilerden hangisi yanlıştır?", "a": ["Anti-Sm ilaca bağlı lupus sendromunda yüksek duyarlılığa sahiptir.", "Yüksek anti-ds-DNA titresi lupus nefrit riski ile ilişkilidir.", "Ribozomal P proteini SLE tanısı için yüksek spesifiteye sahiptir.", "RNA Polimeraz III sistemik sklerozlu hastalarda renal kriz eğilimini yükseltir.", "Yüksek anti-U1RNP (titresi >1:1600) miks konnektif doku hastalığı ile ilişkilidir."]},
+        {"q": "Prematür bebeklerde sıkça görüllen og hidrosefaliye de neden olabilen kanama türü aşağıdakilerden hangisidir?", "a": ["Germinal matriks kanaması", "epidural hematom", "subdural hematom", "serebellar hematom", "talamik hematom"]},
+        {"q": "NÖROJENİK VE VASKÜLER KLADİKASYO AYIRICI TANISINDA AŞAĞIDA VERİLEN BİLGİLERDEN HANGİSİ YANLIŞTIR?", "a": ["VASKÜLER KLADİKASYODA AĞRI POSTÜRE BAĞLIDIR. FLEKSİYON POSTÜRDE ŞİKAYETLER AZALIR.", "NÖROJENİK KLADİKASYONDA AĞRI DAHA ÇOK DERMATOMAL OLUR.", "AYAK ELEVE EDİLİNCE VASKÜLER PATOLOJİDE AYAK SOLUKLAŞIR.", "NABIZ DEĞİŞİKLİKLERİ VASKÜLER PATOLOJİLERDE OLUR.", "NÖROJENİK KLADİKASYODA ŞİKAYETLER SIKLIKLA İLERLEYİCİDİR."]},
+        {"q": "NÖRAL TÜP DEFEKTİ DÜŞÜNÜLEN YA DA BU PATOLOJİ İLE DOĞAN YENİDOĞANDA AŞAĞIDA VERİLEN PATOLOJİLERİN HANGİSİNİN BİRLİKTE GÖRÜLME İHTİMALİ EN AZDIR?", "a": ["MAKSİLOFASİAL PATOLOJİLER (YARIK DAMAK VB.)", "SYRİNGOMYELİ", "HİDROSEFALİ", "DİASTOMETOMYELİ", "LİPOM"]},
+        {"q": "Diz ekstansiyonunda yerçekimini yenebilen bir hastanın kas kuvveti kaçtır?", "a": ["3", "1", "2", "4", "5"]},
+        {"q": "Erişkin çağda spinal kemikleri tutan en sık malign tümör hangisidir?", "a": ["Multiple Myelom", "Osteoid osteoma", "Osteokondrom", "Osteoblastom", "Kondrosarkom"]},
+        {"q": "Kafa içi basınç artışı sendromu (KİBAS) durumunda aşağıdaki semptomlardan hangisi beklenmez?", "a": ["Hipotansiyon", "Papil Ödemi", "Baş Ağrısı", "Kusma", "Bradikardi Sayfa"]}
+        ]
+    }
+];
+
+let currentExam = null;
+let currentIdx = 0;
+let quizFinished = false;
+let quizData = [];
+let userAnswers = [];
+
+/* ===== ANA SAYFA ===== */
+function renderExamList() {
+    const list = document.getElementById("exam-list");
+    list.innerHTML = "";
+    EXAMS.forEach((exam, i) => {
+        const item = document.createElement("div");
+        item.className = "exam-item";
+        item.onclick = () => startExam(i);
+        item.innerHTML = `
+            <div>
+                <div class="exam-title">${exam.title}</div>
+                <div class="exam-desc">${exam.desc || exam.questions.length + " soru"}</div>
+            </div>
+            <div class="arrow">&#8594;</div>`;
+        list.appendChild(item);
+    });
+}
+
+function startExam(examIdx) {
+    currentExam = examIdx;
+    document.getElementById("exam-select-screen").style.display = "none";
+    document.getElementById("quiz-header").style.display = "flex";
+    document.getElementById("sidebar").style.display = "";
+    document.getElementById("quiz-area").style.display = "";
+    document.getElementById("result-screen").style.display = "none";
+    document.getElementById("header-title").innerText = EXAMS[examIdx].title;
+    document.body.classList.add("quiz-mode");
+    initQuiz();
+    window.scrollTo(0,0);
+}
+
+function goHome() {
+    if (!quizFinished && userAnswers.some(a => a !== null)) {
+        if (!confirm("Sınavdan çıkmak istediğinize emin misiniz? Cevaplarınız kaydedilmeyecek.")) return;
+    }
+    currentExam = null;
+    document.body.classList.remove("quiz-mode");
+    document.getElementById("quiz-header").style.display = "none";
+    document.getElementById("sidebar").style.display = "none";
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("quiz-area").style.display = "none";
+    document.getElementById("result-screen").style.display = "none";
+    document.getElementById("exam-select-screen").style.display = "block";
+    window.scrollTo(0,0);
+}
+
+function restartExam() {
+    startExam(currentExam);
+}
+
+/* ===== QUIZ MOTORU ===== */
+function initQuiz() {
+    quizFinished = false;
+    currentIdx = 0;
+    const questions = EXAMS[currentExam].questions;
+
+    // 1. Her sorunun şıklarını karıştır (ilk şık = doğru cevap işaretlenir)
+    quizData = questions.map(q => {
+        let options = q.a.map((opt, index) => ({ text: opt, isCorrect: index === 0 }));
+        for (let i = options.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [options[i], options[j]] = [options[j], options[i]];
+        }
+        return { q: q.q, options: options };
+    });
+
+    // 2. Soru sırasını karıştır
+    for (let i = quizData.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [quizData[i], quizData[j]] = [quizData[j], quizData[i]];
+    }
+
+    userAnswers = new Array(quizData.length).fill(null);
+    renderSidebar();
+    loadQuestion();
+}
+
+function toggleSidebar() {
+    document.getElementById("sidebar").classList.toggle("open");
+}
+
+function closeSidebar(event) {
+    document.getElementById("sidebar").classList.remove("open");
+}
+
+function renderSidebar() {
+    const grid = document.getElementById("q-grid");
+    grid.innerHTML = "";
+    quizData.forEach((_, i) => {
+        const badge = document.createElement("div");
+        badge.className = `q-badge ${i === currentIdx ? 'active' : ''} ${userAnswers[i] !== null ? 'answered' : ''}`;
+        badge.innerText = i + 1;
+        badge.onclick = () => { jumpToQuestion(i); closeSidebar(); };
+        grid.appendChild(badge);
+    });
+}
+
+function loadQuestion() {
+    if (quizFinished) return;
+
+    const qData = quizData[currentIdx];
+    document.getElementById("question").innerHTML = qData.q;
+    document.getElementById("mobile-progress").innerText = `Soru ${currentIdx + 1} / ${quizData.length}`;
+    document.getElementById("prev-btn").disabled = currentIdx === 0;
+    document.getElementById("next-btn").disabled = currentIdx === quizData.length - 1;
+
+    const optionsDiv = document.getElementById("options");
+    optionsDiv.innerHTML = "";
+
+    const hasAnswered = userAnswers[currentIdx] !== null;
+
+    qData.options.forEach((opt, index) => {
+        const div = document.createElement("div");
+        let className = "option";
+        if (hasAnswered) {
+            if (opt.isCorrect) className += " correct";
+            else if (userAnswers[currentIdx] === index) className += " wrong";
+            div.style.cursor = "default";
+        } else {
+            div.onclick = () => selectOption(index);
+        }
+        div.className = className;
+        div.innerHTML = `<strong>${String.fromCharCode(65 + index)})</strong> ${opt.text}`;
+        optionsDiv.appendChild(div);
+    });
+
+    renderSidebar();
+    if (window.innerWidth < 992) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function selectOption(idx) {
+    if (userAnswers[currentIdx] !== null) return;
+    userAnswers[currentIdx] = idx;
+    loadQuestion();
+}
+
+function nextQuestion() {
+    if (currentIdx < quizData.length - 1) { currentIdx++; loadQuestion(); }
+}
+
+function prevQuestion() {
+    if (currentIdx > 0) { currentIdx--; loadQuestion(); }
+}
+
+function jumpToQuestion(i) {
+    currentIdx = i;
+    loadQuestion();
+}
+
+function finishQuiz() {
+    if (!confirm("Sınavı bitirmek istediğinize emin misiniz?")) return;
+
+    quizFinished = true;
+    document.getElementById("quiz-area").style.display = "none";
+    document.getElementById("sidebar").style.display = "none";
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("quiz-header").style.display = "none";
+    document.getElementById("result-screen").style.display = "block";
+    document.body.classList.remove("quiz-mode");
+    window.scrollTo(0,0);
+
+    let correctCount = 0;
+    const reviewList = document.getElementById("review-list");
+    reviewList.innerHTML = "";
+
+    quizData.forEach((qData, i) => {
+        const selectedIdx = userAnswers[i];
+        const isCorrect = selectedIdx !== null && qData.options[selectedIdx].isCorrect;
+        if (isCorrect) correctCount++;
+
+        const item = document.createElement("div");
+        item.className = "review-item";
+        item.style.borderLeft = `4px solid ${isCorrect ? 'var(--success)' : 'var(--error)'}`;
+
+        const correctOptIdx = qData.options.findIndex(o => o.isCorrect);
+        let selectedText = "Boş Bırakıldı";
+        if (selectedIdx !== null) {
+            selectedText = `${String.fromCharCode(65 + selectedIdx)}) ${qData.options[selectedIdx].text}`;
+        }
+        const correctText = `${String.fromCharCode(65 + correctOptIdx)}) ${qData.options[correctOptIdx].text}`;
+
+        item.innerHTML = `
+            <div style="font-weight: 600; margin-bottom: 0.8rem; line-height: 1.4; color: var(--text);">Soru ${i + 1}: ${qData.q}</div>
+            <div style="color: ${isCorrect ? 'var(--success)' : 'var(--error)'}; font-weight: ${isCorrect ? '500' : 'normal'}; margin-bottom: 0.3rem;">
+                Senin Cevabın: ${selectedText}
+            </div>
+            ${!isCorrect ? `<div style="color: var(--success); font-weight: 500;">Doğru Cevap: ${correctText}</div>` : ''}
+        `;
+        reviewList.appendChild(item);
+    });
+
+    document.getElementById("score-summary").innerText = `Skor: ${correctCount} / ${quizData.length}`;
+}
+
+renderExamList();
+</script>
+</body>
+</html>
